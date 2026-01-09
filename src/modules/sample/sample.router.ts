@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { SampleController } from "./sample.controller";
-import { validateBody } from "../../middlewares/validation.middleware";
-import { CreateSampleDTO } from "./dto/create-sample.dto";
+import { SampleController } from "./sample.controller.js";
+import { validateBody } from "../../middlewares/validation.middleware.js";
+import { CreateSampleDTO } from "./dto/create-sample.dto.js";
 
 export class SampleRouter {
   private router: Router;

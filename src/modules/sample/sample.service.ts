@@ -1,6 +1,6 @@
-import { PrismaClient } from "../../../generated/prisma/client";
-import { prisma } from "../../lib/prisma";
-import { CreateSampleDTO } from "./dto/create-sample.dto";
+import { PrismaClient } from "../../../generated/prisma/client.js";
+import { prisma } from "../../lib/prisma.js";
+import { CreateSampleDTO } from "./dto/create-sample.dto.js";
 
 export class SampleService {
   private prisma: PrismaClient;

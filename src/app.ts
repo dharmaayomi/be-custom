@@ -1,9 +1,9 @@
 import cors from "cors";
 import express, { Express } from "express";
 import "reflect-metadata";
-import { PORT } from "./config/env";
-import { errorMiddleware } from "./middlewares/error.middleware";
-import { SampleRouter } from "./modules/sample/sample.router";
+import { PORT } from "./config/env.js";
+import { errorMiddleware } from "./middlewares/error.middleware.js";
+import { SampleRouter } from "./modules/sample/sample.router.js";
 
 export class App {
   app: Express;

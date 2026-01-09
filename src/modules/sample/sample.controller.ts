@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { SampleService } from "./sample.service";
+import { SampleService } from "./sample.service.js";
 
 export class SampleController {
   private sampleService: SampleService;
