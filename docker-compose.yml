@@ -1,18 +1,4 @@
 services:
-  app:
-    build: .
-    container_name: express_app
-    restart: always
-    ports:
-      - "8000:8000"
-    stdin_open: true
-    tty: true # Keeps the container running for debugging
-    depends_on:
-      postgres:
-        condition: service_healthy
-    env_file:
-      - .env.prod
-    
   postgres:
     image: postgres
     container_name: postgres_container
