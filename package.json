@@ -13,16 +13,22 @@
     "docker-dev:down": "docker compose -f docker-compose.dev.yml down",
     "docker-prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
     "docker-prod:down": "docker compose -f docker-compose.prod.yml down",
-    "docker-prod:logs": "docker compose -f docker-compose.prod.yml logs -f"
+    "docker-prod:logs": "docker compose -f docker-compose.prod.yml logs -f",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.2",
     "@types/pg": "^8.16.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
     "prisma": "^7.2.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
@@ -37,5 +43,8 @@
     "express": "^5.2.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2"
+  },
+  "lint-staged": {
+    "**/*": "prettier --write --ignore-unknown"
   }
 }
