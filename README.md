@@ -88,7 +88,7 @@ DATABASE_URL="postgresql://postgres:yourpass@postgres:5432/postgres"
 
 #### Local Development
 
-Run the Prisma migration command to create the database schema based on your `prisma/schema.prisma` file. This will also generate the Prisma Client.
+Run the Prisma migration command to create the database schema based on your `prisma/schema.prisma` file.
 
 ```bash
 npx prisma migrate dev
