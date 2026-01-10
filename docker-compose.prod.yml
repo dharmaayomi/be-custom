@@ -13,7 +13,6 @@ services:
       timeout: 2s
       retries: 20
 
-
   app:
     build: .
     container_name: express_app

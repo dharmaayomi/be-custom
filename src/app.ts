@@ -40,7 +40,7 @@ export class App {
     // routers
     const sampleRouter = new SampleRouter(
       sampleController,
-      validationMiddleware
+      validationMiddleware,
     );
 
     this.app.use("/samples", sampleRouter.getRouter());

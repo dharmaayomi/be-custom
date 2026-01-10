@@ -4,12 +4,12 @@ This project is a robust boilerplate for building REST APIs using Express.js, Ty
 
 ## Features
 
-*   **Framework**: [Express.js](https://expressjs.com/) for building the web server and APIs.
-*   **Language**: [TypeScript](https://www.typescriptlang.org/) for static typing and a better development experience.
-*   **ORM**: [Prisma](https://www.prisma.io/) for intuitive, type-safe database access.
-*   **Validation**: [class-validator](https://github.com/typestack/class-validator) and [class-transformer](https://github.com/typestack/class-transformer) for validating and transforming incoming request bodies.
-*   **Environment Variables**: [dotenv](https://github.com/motdotla/dotenv) to load environment variables from a `.env` file.
-*   **CORS**: Pre-configured CORS support.
+- **Framework**: [Express.js](https://expressjs.com/) for building the web server and APIs.
+- **Language**: [TypeScript](https://www.typescriptlang.org/) for static typing and a better development experience.
+- **ORM**: [Prisma](https://www.prisma.io/) for intuitive, type-safe database access.
+- **Validation**: [class-validator](https://github.com/typestack/class-validator) and [class-transformer](https://github.com/typestack/class-transformer) for validating and transforming incoming request bodies.
+- **Environment Variables**: [dotenv](https://github.com/motdotla/dotenv) to load environment variables from a `.env` file.
+- **CORS**: Pre-configured CORS support.
 
 ## Getting Started
 

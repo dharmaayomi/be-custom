@@ -5,7 +5,7 @@ export const errorMiddleware = (
   err: ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const message = err.message || "Something went wrong!";
   const status = err.status || 500;

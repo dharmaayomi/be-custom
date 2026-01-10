@@ -8,7 +8,7 @@ export class SampleRouter {
 
   constructor(
     private sampleController: SampleController,
-    private validationMiddleware: ValidationMiddleware
+    private validationMiddleware: ValidationMiddleware,
   ) {
     this.router = Router();
     this.initializedRoutes();
@@ -19,7 +19,7 @@ export class SampleRouter {
     this.router.post(
       "/",
       this.validationMiddleware.validateBody(CreateSampleDTO),
-      this.sampleController.createSample
+      this.sampleController.createSample,
     );
   };
 
