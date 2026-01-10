@@ -71,6 +71,7 @@ Or create it manually with the following content:
 
 ```env
 # APP
+NODE_ENV=production
 PORT=8000
 
 # DB
