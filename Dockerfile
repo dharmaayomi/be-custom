@@ -1,7 +1,7 @@
 FROM node:slim
 
 RUN apt-get update -y \
-&& apt-get install -y openssl
+    && apt-get install -y openssl
 
 WORKDIR /app
 

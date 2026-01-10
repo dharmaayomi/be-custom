@@ -9,11 +9,11 @@
     "start": "node dist/src/index.js",
     "dev": "tsx --watch src/index.ts",
     "db:deploy": "npx prisma migrate deploy && npx prisma generate",
-    "docker-dev:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
-    "docker-dev:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
-    "docker-prod:up": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
-    "docker-prod:down": "docker compose -f docker-compose.yml -f docker-compose.prod.yml down",
-    "docker-prod:logs": "docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f"
+    "docker-dev:up": "docker compose -f docker-compose.dev.yml up -d",
+    "docker-dev:down": "docker compose -f docker-compose.dev.yml down",
+    "docker-prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
+    "docker-prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker-prod:logs": "docker compose -f docker-compose.prod.yml logs -f"
   },
   "keywords": [],
   "author": "",

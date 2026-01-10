@@ -1,4 +1,18 @@
 services:
   postgres:
-    env_file:
-      - .env
+    image: postgres
+    container_name: postgres_container_dev
+    restart: always
+    volumes:
+      - ./docker/dev/postgres:/var/lib/postgresql/18/docker
+    ports:
+      - '6543:5432'
+    environment:
+      POSTGRES_PASSWORD: admin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+
+
