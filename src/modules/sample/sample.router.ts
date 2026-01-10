@@ -1,15 +1,16 @@
 import { Router } from "express";
-import { SampleController } from "./sample.controller.js";
-import { validateBody } from "../../middlewares/validation.middleware.js";
+import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { CreateSampleDTO } from "./dto/create-sample.dto.js";
+import { SampleController } from "./sample.controller.js";
 
 export class SampleRouter {
   private router: Router;
-  private sampleController: SampleController;
 
-  constructor() {
+  constructor(
+    private sampleController: SampleController,
+    private validationMiddleware: ValidationMiddleware
+  ) {
     this.router = Router();
-    this.sampleController = new SampleController();
     this.initializedRoutes();
   }
 
@@ -17,7 +18,7 @@ export class SampleRouter {
     this.router.get("/", this.sampleController.getSamples);
     this.router.post(
       "/",
-      validateBody(CreateSampleDTO),
+      this.validationMiddleware.validateBody(CreateSampleDTO),
       this.sampleController.createSample
     );
   };

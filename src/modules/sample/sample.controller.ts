@@ -2,11 +2,7 @@ import { Request, Response } from "express";
 import { SampleService } from "./sample.service.js";
 
 export class SampleController {
-  private sampleService: SampleService;
-
-  constructor() {
-    this.sampleService = new SampleService();
-  }
+  constructor(private sampleService: SampleService) {}
 
   getSamples = async (req: Request, res: Response) => {
     const result = await this.sampleService.getSamples();
