@@ -15,4 +15,26 @@ model Sample {
   updatedAt DateTime  @updatedAt
 
   @@map("samples")
+
+  
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  firstName   String?
+  lastName String?
+  phoneNumber String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
 }
