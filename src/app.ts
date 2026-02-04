@@ -15,6 +15,7 @@ import { AuthService } from "./modules/auth/auth.service.js";
 import { PasswordService } from "./modules/auth/password.service.js";
 import { TokenService } from "./modules/auth/token.service.js";
 import { MailService } from "./modules/mail/mail.service.js";
+import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
 
 export class App {
   app: Express;
@@ -47,6 +48,7 @@ export class App {
       tokenService,
       mailService,
     );
+    const cloudinaryService = new CloudinaryService();
 
     // controllers
     const sampleController = new SampleController(sampleService);
