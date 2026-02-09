@@ -16,6 +16,12 @@ import { PasswordService } from "./modules/auth/password.service.js";
 import { TokenService } from "./modules/auth/token.service.js";
 import { MailService } from "./modules/mail/mail.service.js";
 import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
+import { UserRouter } from "./modules/user/user.router.js";
+import { UserService } from "./modules/user/user.service.js";
+import { UserController } from "./modules/user/user.controller.js";
+import { DesignService } from "./modules/design/design.service.js";
+import { DesignController } from "./modules/design/design.controller.js";
+import { DesignRouter } from "./modules/design/design.router.js";
 
 export class App {
   app: Express;
@@ -49,10 +55,14 @@ export class App {
       mailService,
     );
     const cloudinaryService = new CloudinaryService();
+    const userService = new UserService(prismaClient, cloudinaryService);
+    const designService = new DesignService(prismaClient);
 
     // controllers
     const sampleController = new SampleController(sampleService);
     const authController = new AuthController(authService);
+    const userController = new UserController(userService);
+    const designController = new DesignController(designService);
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
@@ -63,10 +73,17 @@ export class App {
       validationMiddleware,
     );
     const authRouter = new AuthRouter(authController, validationMiddleware);
+    const userRouter = new UserRouter(userController, validationMiddleware);
+    const designRouter = new DesignRouter(
+      designController,
+      validationMiddleware,
+    );
 
     // routes
-    this.app.use("/samples", sampleRouter.getRouter());
+    // this.app.use("/samples", sampleRouter.getRouter());
     this.app.use("/auth", authRouter.getRouter());
+    this.app.use("/user", userRouter.getRouter());
+    this.app.use("/design", designRouter.getRouter());
   }
 
   private handleError() {

@@ -25,6 +25,10 @@ export class RegisterDTO {
   lastName!: string;
 
   @IsString()
-  @IsOptional() // Sesuai dengan logic di service lama Anda
+  @IsOptional()
+  userName?: string;
+
+  @IsString()
+  @IsOptional()
   phoneNumber?: string;
 }
