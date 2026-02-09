@@ -16,3 +16,114 @@ model Sample {
 
   @@map("samples")
 }
+
+model User {
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String
+  role        Role         @default(USER)
+  userName    String?
+  firstName   String?
+  lastName    String?
+  phoneNumber String?
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  addresses   Address[]
+  userDesigns UserDesign[]
+
+  @@map("users")
+}
+
+model Address {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  label       String
+  phoneNumber String
+  line1       String
+  line2       String?
+  city        String
+  state       String
+  country     String
+  latitude    Float?
+  longitude   Float?
+  postalCode  Int
+  isDefault   Boolean
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("addresses")
+}
+
+model Product {
+  id              Int       @id @default(autoincrement())
+  productName     String
+  SKU             String
+  product_url     String
+  productCategory String
+  description     String
+  isActive        Boolean
+  isCustomizable  Boolean
+  images          String[]
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ProductPart {
+  id                Int @id @default(autoincrement())
+  productMaterialId Int
+}
+
+model ProductMaterials {
+  id                  Int       @id @default(autoincrement())
+  productMaterialName String
+  materialDesc        String
+  isActive            Boolean
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+}
+
+model UserDesign {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
+  designCode    String    @unique
+  designName    String
+  configuration Json
+  fileFinalUrl  String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ShareableDesign {
+  id            Int    @id @default(autoincrement())
+  designCode    String @unique
+  configHash    String @unique
+  configuration Json
+
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProductCategory {
+  FRAME
+  ADD_ON_UNITS
+  LAMP
+  HANGER
+  TRAY
+  DRAWER
+  LIGHTING_SHELVES
+  GLASSES
+  DOOR
+}
