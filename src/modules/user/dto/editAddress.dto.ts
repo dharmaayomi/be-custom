@@ -7,58 +7,58 @@ import {
   IsString,
 } from "class-validator";
 
-export class CreateAddressDTO {
+export class EditAddressDTO {
   @IsString()
-  @IsNotEmpty()
-  label!: string;
+  @IsOptional()
+  label?: string;
 
   @IsString()
-  @IsNotEmpty()
-  recipientName!: string;
+  @IsOptional()
+  recipientName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  phoneNumber!: string;
+  @IsOptional()
+  phoneNumber?: string;
 
   @IsString()
-  @IsNotEmpty()
-  line1!: string;
+  @IsOptional()
+  line1?: string;
 
   @IsString()
   @IsOptional()
   line2?: string;
 
   @IsString()
-  @IsNotEmpty()
-  city!: string;
+  @IsOptional()
+  city?: string;
 
   @IsString()
-  @IsNotEmpty()
-  district!: string;
+  @IsOptional()
+  district?: string;
 
   @IsString()
-  @IsNotEmpty()
-  province!: string;
+  @IsOptional()
+  province?: string;
 
   @IsString()
-  @IsNotEmpty()
-  country!: string;
+  @IsOptional()
+  country?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsBoolean()
-  isDefault!: boolean;
+  isDefault?: boolean;
 
-  @IsNotEmpty()
+  @IsOptional()
   @Transform(({ value }) => parseFloat(value))
   @IsNumber({}, { message: "Latitude must be a valid number" })
-  readonly latitude!: number;
+  readonly latitude?: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @Transform(({ value }) => parseFloat(value))
   @IsNumber({}, { message: "Longitude must be a valid number" })
-  readonly longitude!: number;
+  readonly longitude?: number;
 
   @IsNumber()
-  @IsNotEmpty()
-  postalCode!: number;
+  @IsOptional()
+  postalCode?: number;
 }

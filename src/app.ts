@@ -22,6 +22,7 @@ import { UserController } from "./modules/user/user.controller.js";
 import { DesignService } from "./modules/design/design.service.js";
 import { DesignController } from "./modules/design/design.controller.js";
 import { DesignRouter } from "./modules/design/design.router.js";
+import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
 
 export class App {
   app: Express;
@@ -66,6 +67,7 @@ export class App {
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
+    const jwtMiddleware = new JwtMiddleware();
 
     // routers
     const sampleRouter = new SampleRouter(
@@ -73,10 +75,15 @@ export class App {
       validationMiddleware,
     );
     const authRouter = new AuthRouter(authController, validationMiddleware);
-    const userRouter = new UserRouter(userController, validationMiddleware);
+    const userRouter = new UserRouter(
+      userController,
+      validationMiddleware,
+      jwtMiddleware,
+    );
     const designRouter = new DesignRouter(
       designController,
       validationMiddleware,
+      jwtMiddleware,
     );
 
     // routes

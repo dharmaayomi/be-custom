@@ -36,24 +36,27 @@ model User {
 }
 
 model Address {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id])
-  label       String
-  phoneNumber String
-  line1       String
-  line2       String?
-  city        String
-  state       String
-  country     String
-  latitude    Float?
-  longitude   Float?
-  postalCode  Int
-  isDefault   Boolean
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
+  label         String
+  recipientName String
+  phoneNumber   String
+  line1         String
+  line2         String?
+  city          String
+  district      String
+  province      String
+  country       String
+  latitude      Float?
+  longitude     Float?
+  postalCode    Int
+  isDefault     Boolean
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
+  @@index([userId, isDefault])
   @@map("addresses")
 }
 
@@ -70,11 +73,15 @@ model Product {
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@map("products")
 }
 
 model ProductPart {
   id                Int @id @default(autoincrement())
   productMaterialId Int
+
+  @@map("productParts")
 }
 
 model ProductMaterials {
@@ -85,30 +92,36 @@ model ProductMaterials {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?
+
+  @@map("productMaterials")
 }
 
 model UserDesign {
   id            Int       @id @default(autoincrement())
   userId        Int
   user          User      @relation(fields: [userId], references: [id])
-  designCode    String    @unique
+  designCode    String
   designName    String
   configuration Json
   fileFinalUrl  String?
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime? @updatedAt
+
+  @@unique([userId, designName])
+  @@unique([userId, designCode])
+  @@index([userId, deletedAt])
+  @@map("userDesigns")
 }
 
 model ShareableDesign {
-  id            Int    @id @default(autoincrement())
-  designCode    String @unique
-  configHash    String @unique
+  id            Int       @id @default(autoincrement())
+  designCode    String    @unique
+  configHash    String    @unique
   configuration Json
-
-  expiresAt DateTime?
-
-  createdAt DateTime @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime? @updatedAt
 }
 
 enum Role {
