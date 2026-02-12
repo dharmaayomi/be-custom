@@ -27,7 +27,16 @@ export class UserRouter {
       this.jwtMiddleware.verifyToken(),
       this.userController.getUserDisplay,
     );
-    this.router.get("/:id/address", this.userController.getAddresses);
+    this.router.get(
+      "/:id/address",
+      this.jwtMiddleware.verifyToken(),
+      this.userController.getAddresses,
+    );
+    this.router.get(
+      "/:id/address/:addressId",
+      this.jwtMiddleware.verifyToken(),
+      this.userController.getAddressById,
+    );
     this.router.post(
       "/:id/address",
       this.jwtMiddleware.verifyToken(),

@@ -50,4 +50,11 @@ export class UserController {
     const result = await this.userService.getAddresses(authUserId);
     res.status(200).send(result);
   };
+
+  getAddressById = async (req: Request, res: Response, next: NextFunction) => {
+    const authUserId = Number(res.locals.user.id);
+    const addressId = Number(req.params.addressId);
+    const result = await this.userService.getAddressById(authUserId, addressId);
+    res.status(200).send(result);
+  };
 }
