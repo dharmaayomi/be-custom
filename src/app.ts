@@ -23,6 +23,7 @@ import { DesignService } from "./modules/design/design.service.js";
 import { DesignController } from "./modules/design/design.controller.js";
 import { DesignRouter } from "./modules/design/design.router.js";
 import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
+import { RoleMiddleware } from "./middlewares/role.middleware.js";
 
 export class App {
   app: Express;
@@ -68,6 +69,7 @@ export class App {
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
     const jwtMiddleware = new JwtMiddleware();
+    const roleMiddleware = new RoleMiddleware();
 
     // routers
     const sampleRouter = new SampleRouter(

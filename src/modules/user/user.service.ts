@@ -142,4 +142,21 @@ export class UserService {
     });
     return addresses;
   };
+  getAddressById = async (authUserId: number, addressId: number) => {
+    const address = await this.prisma.address.findFirst({
+      where: {
+        id: addressId,
+        userId: authUserId,
+        deletedAt: null,
+      },
+    });
+
+    if (!address) {
+      throw new ApiError("We couldn't find your address", 404);
+    }
+
+    return address;
+  };
+
+  updataProfile = async (authUserId: number) => {};
 }
