@@ -55,11 +55,18 @@ export class MailService {
 
       await this.transporter.sendMail(mailOptions);
     } catch (error: any) {
-      // TAMBAHKAN LOG INI
-      console.error("--- DETAIL ERROR MAIL ---");
-      console.error(error);
-      console.error("-------------------------");
       throw new Error("Error sending email");
     }
+  };
+
+  public sendResetPasswordEmail = async (
+    to: string,
+    resetPasswordLink: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Reset Password", "resetPassword", {
+      resetPasswordLink,
+      firstName,
+    });
   };
 }

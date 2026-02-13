@@ -5,8 +5,10 @@ import { PasswordService } from "./password.service.js";
 import { TokenService } from "./token.service.js";
 import { PrismaClient } from "../../../generated/prisma/client.js";
 import { MailService } from "../mail/mail.service.js";
-import { JWT_SECRET } from "../../config/env.js";
+import { JWT_SECRET, JWT_SECRET_KEY_RESET_PASSWORD } from "../../config/env.js";
 import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
+import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
+import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
 
 export class AuthService {
   constructor(
@@ -121,5 +123,91 @@ export class AuthService {
     const { password, ...userWithoutPassword } = updatedUser;
 
     return userWithoutPassword;
+  };
+
+  forgotPassword = async (body: ForgotPasswordDTO) => {
+    const { email } = body;
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+      },
+    });
+
+    if (!existingUser) {
+      throw new ApiError("Email is not registered", 400);
+    }
+
+    const forgotPasswordPayload = {
+      userId: existingUser.id,
+      email: existingUser.email,
+    };
+
+    const resetPasswordToken = this.tokenService.generateToken(
+      forgotPasswordPayload,
+      JWT_SECRET_KEY_RESET_PASSWORD,
+      { expiresIn: "15m" },
+    );
+
+    await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        resetPasswordToken: resetPasswordToken,
+        resetPasswordTokenUsed: false,
+      },
+    });
+
+    const resetPasswordLink = `${process.env.BASE_URL_FE}/reset-password?token=${resetPasswordToken}`;
+
+    await this.mailService.sendResetPasswordEmail(
+      existingUser.email,
+      resetPasswordLink,
+      existingUser.firstName,
+    );
+
+    return {
+      message: "Reset password link has been sent to your email",
+    };
+  };
+
+  resetPassword = async (
+    body: ResetPasswordDTO,
+    resetPasswordToken: string,
+  ) => {
+    try {
+      this.tokenService.verifyToken(
+        resetPasswordToken,
+        JWT_SECRET_KEY_RESET_PASSWORD,
+      );
+    } catch (error) {
+      throw new ApiError("Invalid reset password token", 400);
+    }
+
+    const { newPassword } = body;
+    const existingUser = await this.prisma.user.findFirst({
+      where: { resetPasswordToken, resetPasswordTokenUsed: false },
+      select: { id: true },
+    });
+
+    if (!existingUser) {
+      throw new ApiError("Invalid reset password token", 400);
+    }
+
+    const hashedPassword = await this.passwordService.hashPassword(newPassword);
+
+    await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordTokenUsed: true,
+      },
+    });
+    return {
+      message: "Password reset successfully",
+    };
   };
 }

@@ -5,6 +5,8 @@ import { RegisterDTO } from "./dto/register.dto.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
+import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
+import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
 
 export class AuthRouter {
   private readonly router: Router = Router();
@@ -35,6 +37,18 @@ export class AuthRouter {
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(ChangePasswordDTO),
       this.authController.changePassword,
+    );
+
+    this.router.post(
+      "/forgot-password",
+      this.validationMiddleware.validateBody(ForgotPasswordDTO),
+      this.authController.forgotPassword,
+    );
+
+    this.router.post(
+      "/reset-password",
+      this.validationMiddleware.validateBody(ResetPasswordDTO),
+      this.authController.resetPassword,
     );
   };
 
