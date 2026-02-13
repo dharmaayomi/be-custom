@@ -6,6 +6,7 @@ import { TokenService } from "./token.service.js";
 import { PrismaClient } from "../../../generated/prisma/client.js";
 import { MailService } from "../mail/mail.service.js";
 import { JWT_SECRET } from "../../config/env.js";
+import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 
 export class AuthService {
   constructor(
@@ -80,6 +81,45 @@ export class AuthService {
       { firstName: newUser.firstName },
     );
     const { password: _, ...userWithoutPassword } = newUser;
+    return userWithoutPassword;
+  };
+
+  changePassword = async (userId: number, body: ChangePasswordDTO) => {
+    const { currentPassword, newPassword } = body;
+
+    const existingUser = await this.prisma.user.findFirst({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
+
+    if (!existingUser || !existingUser.password) {
+      throw new ApiError("Invalid user", 400);
+    }
+
+    const isPasswordValid = await this.passwordService.comparePassword(
+      currentPassword,
+      existingUser.password,
+    );
+    if (!isPasswordValid) {
+      throw new ApiError("Current password incorrect", 400);
+    }
+
+    const isPasswordSame = await this.passwordService.comparePassword(
+      newPassword,
+      existingUser.password,
+    );
+    if (isPasswordSame) {
+      throw new ApiError("New password should be different", 400);
+    }
+
+    const hashedPassword = await this.passwordService.hashPassword(newPassword);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+    const { password, ...userWithoutPassword } = updatedUser;
+
     return userWithoutPassword;
   };
 }

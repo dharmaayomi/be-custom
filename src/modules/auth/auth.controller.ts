@@ -2,9 +2,9 @@ import { NextFunction, Request, Response } from "express";
 import { AuthService } from "./auth.service.js";
 import { LoginDTO } from "./dto/login.dto.js";
 import { RegisterDTO } from "./dto/register.dto.js";
+import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 
 export class AuthController {
-  // Menggunakan manual injection melalui constructor
   constructor(private authService: AuthService) {}
 
   login = async (req: Request, res: Response, next: NextFunction) => {
@@ -32,6 +32,18 @@ export class AuthController {
         message: "User registered successfully",
         data: result,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const body = req.body as ChangePasswordDTO;
+      const result = await this.authService.changePassword(authUserId, body);
+
+      res.status(200).send(result);
     } catch (error) {
       next(error);
     }
