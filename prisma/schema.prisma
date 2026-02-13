@@ -18,20 +18,23 @@ model Sample {
 }
 
 model User {
-  id          Int          @id @default(autoincrement())
-  email       String       @unique
-  password    String
-  role        Role         @default(USER)
-  userName    String?      @unique
-  firstName   String?
-  lastName    String?
-  phoneNumber String?
-  avatar      String?
-  deletedAt   DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  addresses   Address[]
-  userDesigns UserDesign[]
+  id                     Int          @id @default(autoincrement())
+  email                  String       @unique
+  password               String
+  role                   Role         @default(USER)
+  userName               String?      @unique
+  firstName              String
+  lastName               String
+  phoneNumber            String?
+  avatar                 String?
+  resetPasswordToken     String?
+  resetPasswordTokenUsed Boolean?
+  verificationSentAt     DateTime?
+  deletedAt              DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  addresses              Address[]
+  userDesigns            UserDesign[]
 
   @@map("users")
 }

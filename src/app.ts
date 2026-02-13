@@ -78,7 +78,11 @@ export class App {
       sampleController,
       validationMiddleware,
     );
-    const authRouter = new AuthRouter(authController, validationMiddleware);
+    const authRouter = new AuthRouter(
+      authController,
+      validationMiddleware,
+      jwtMiddleware,
+    );
     const userRouter = new UserRouter(
       userController,
       validationMiddleware,
