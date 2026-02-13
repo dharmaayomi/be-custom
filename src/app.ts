@@ -24,6 +24,7 @@ import { DesignController } from "./modules/design/design.controller.js";
 import { DesignRouter } from "./modules/design/design.router.js";
 import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
 import { RoleMiddleware } from "./middlewares/role.middleware.js";
+import { UploaderMiddleware } from "./middlewares/uploader.middleware.js";
 
 export class App {
   app: Express;
@@ -63,13 +64,14 @@ export class App {
     // controllers
     const sampleController = new SampleController(sampleService);
     const authController = new AuthController(authService);
-    const userController = new UserController(userService);
+    const userController = new UserController(userService, cloudinaryService);
     const designController = new DesignController(designService);
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
     const jwtMiddleware = new JwtMiddleware();
     const roleMiddleware = new RoleMiddleware();
+    const uploaderMiddleware = new UploaderMiddleware();
 
     // routers
     const sampleRouter = new SampleRouter(
@@ -81,6 +83,7 @@ export class App {
       userController,
       validationMiddleware,
       jwtMiddleware,
+      uploaderMiddleware,
     );
     const designRouter = new DesignRouter(
       designController,

@@ -27,11 +27,18 @@ export class JwtMiddleware {
         const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
         res.locals.user = payload;
         next();
+        // } catch (err) {
+        //   if (err instanceof jwt.TokenExpiredError) {
+        //     throw new ApiError("Token expired", 403);
+        //   }
+        //   throw new ApiError("Invalid token", 403);
+        // }
       } catch (err) {
         if (err instanceof jwt.TokenExpiredError) {
-          throw new ApiError("Token expired", 403);
+          throw new ApiError("Session expired", 401, "SESSION_EXPIRED");
         }
-        throw new ApiError("Invalid token", 403);
+
+        throw new ApiError("Invalid token", 401);
       }
     };
   }
