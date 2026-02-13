@@ -143,6 +143,7 @@ export class UserService {
     });
     return addresses;
   };
+
   getAddressById = async (authUserId: number, addressId: number) => {
     const address = await this.prisma.address.findFirst({
       where: {

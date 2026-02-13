@@ -16,4 +16,8 @@ export class UpdateProfileDTO {
   @IsString()
   @IsOptional()
   lastName?: string;
+
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 }
