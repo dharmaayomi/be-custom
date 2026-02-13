@@ -3,6 +3,7 @@ import { ApiError } from "../../utils/api-error.js";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 import { CreateAddressDTO } from "./dto/createAddress.dto.js";
 import { EditAddressDTO } from "./dto/editAddress.dto.js";
+import { UpdateProfileDTO } from "./dto/updateProfile.dto.js";
 
 export class UserService {
   constructor(
@@ -142,6 +143,7 @@ export class UserService {
     });
     return addresses;
   };
+
   getAddressById = async (authUserId: number, addressId: number) => {
     const address = await this.prisma.address.findFirst({
       where: {
@@ -158,5 +160,23 @@ export class UserService {
     return address;
   };
 
-  updataProfile = async (authUserId: number) => {};
+  updateProfile = async (authUserId: number, body: UpdateProfileDTO) => {
+    const updatedUser = await this.prisma.user.update({
+      where: { id: authUserId },
+      data: {
+        ...body,
+      },
+    });
+    return updatedUser;
+  };
+
+  updateAvatar = async (authuserId: number, avatarUrl: string) => {
+    const updatedAvatar = await this.prisma.user.update({
+      where: { id: authuserId },
+      data: {
+        avatar: avatarUrl,
+      },
+    });
+    return updatedAvatar;
+  };
 }

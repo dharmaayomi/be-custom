@@ -10,5 +10,9 @@ export const errorMiddleware = (
   req.log.error(err.message);
   const message = err.message || "Something went wrong!";
   const status = err.status || 500;
-  res.status(status).send({ message });
+  const payload: { message: string; code?: string } = { message };
+  if (err.code) {
+    payload.code = err.code;
+  }
+  res.status(status).send(payload);
 };
