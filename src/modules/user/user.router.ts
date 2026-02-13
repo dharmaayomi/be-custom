@@ -59,7 +59,7 @@ export class UserRouter {
       this.userController.deleteAddress,
     );
     this.router.patch(
-      "/profile/:id",
+      "/profile",
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(UpdateProfileDTO),
       this.userController.updateProfile,
