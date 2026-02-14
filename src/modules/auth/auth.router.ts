@@ -8,10 +8,14 @@ import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
 import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
 import {
+  JWT_SECRET_KEY_DELETE_ACCOUNT,
   JWT_SECRET_KEY_RESET_PASSWORD,
   JWT_SECRET_KEY_VERIFICATION,
 } from "../../config/env.js";
-import { RequestDeleteAccountDTO } from "./dto/deleteAccount.dto.js";
+import {
+  ConfirmDeletionAccountDTO,
+  RequestDeleteAccountDTO,
+} from "./dto/deleteAccount.dto.js";
 
 export class AuthRouter {
   private readonly router: Router = Router();
@@ -48,6 +52,12 @@ export class AuthRouter {
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(RequestDeleteAccountDTO),
       this.authController.requestDeleteAccount,
+    );
+    this.router.post(
+      "/confirm-delete-account",
+      this.jwtMiddleware.verifyToken(JWT_SECRET_KEY_DELETE_ACCOUNT),
+      this.validationMiddleware.validateBody(ConfirmDeletionAccountDTO),
+      this.authController.confirmDeleteAccount,
     );
     this.router.patch(
       "/change-password",

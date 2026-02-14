@@ -91,4 +91,13 @@ export class MailService {
       firstName,
     });
   };
+
+  public sendGoodByeEmail = async (
+    to: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Goodbye from Byte Beyond Persona", "good-bye", {
+      firstName,
+    });
+  };
 }

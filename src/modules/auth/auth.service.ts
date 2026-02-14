@@ -15,7 +15,10 @@ import {
 import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
 import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
-import { RequestDeleteAccountDTO } from "./dto/deleteAccount.dto.js";
+import {
+  ConfirmDeletionAccountDTO,
+  RequestDeleteAccountDTO,
+} from "./dto/deleteAccount.dto.js";
 
 export class AuthService {
   constructor(
@@ -29,7 +32,7 @@ export class AuthService {
     const { email, password } = body;
 
     const existingUser = await this.prisma.user.findFirst({
-      where: { email },
+      where: { email, accountStatus: "ACTIVE", deletedAt: null },
     });
 
     if (!existingUser) {
@@ -203,16 +206,21 @@ export class AuthService {
   };
 
   verifyEmailAndSetPassword = async (
-    authUserId: number,
     emailVerificationToken: string,
     body: VerificationDTO,
   ) => {
+    let payload: { id?: number; email?: string };
     try {
-      this.tokenService.verifyToken(
+      payload = this.tokenService.verifyToken(
         emailVerificationToken,
         JWT_SECRET_KEY_VERIFICATION,
-      );
+      ) as { id?: number; email?: string };
     } catch (error) {
+      throw new ApiError("Invalid verification token", 400);
+    }
+    const tokenUserId = Number(payload.id);
+    const tokenEmail = payload.email;
+    if (!tokenUserId || !tokenEmail) {
       throw new ApiError("Invalid verification token", 400);
     }
 
@@ -220,7 +228,8 @@ export class AuthService {
 
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        id: authUserId,
+        id: tokenUserId,
+        email: tokenEmail,
         emailVerificationToken,
         emailVerificationUsed: false,
         accountStatus: "PENDING",
@@ -242,7 +251,8 @@ export class AuthService {
     const hashedPassword = await this.passwordService.hashPassword(password);
     const verifyUserResult = await this.prisma.user.updateMany({
       where: {
-        id: authUserId,
+        id: tokenUserId,
+        email: tokenEmail,
         emailVerificationToken,
         emailVerificationUsed: false,
         accountStatus: "PENDING",
@@ -260,7 +270,7 @@ export class AuthService {
     }
 
     const updatedUser = await this.prisma.user.findUnique({
-      where: { id: authUserId },
+      where: { id: tokenUserId },
     });
     if (!updatedUser) {
       throw new ApiError("User not found", 404);
@@ -280,7 +290,7 @@ export class AuthService {
     const { currentPassword, newPassword } = body;
 
     const existingUser = await this.prisma.user.findFirst({
-      where: { id: authUserId },
+      where: { id: authUserId, accountStatus: "ACTIVE", deletedAt: null },
       select: { id: true, password: true },
     });
 
@@ -413,16 +423,34 @@ export class AuthService {
         email: true,
         id: true,
         firstName: true,
+        accountStatus: true,
+        deletedAt: true,
+        deleteAccountToken: true,
         deletionRequestSentAt: true,
+        deletedAccountTokenUsed: true,
       },
     });
 
-    if (existingUser?.email !== email) {
+    if (!existingUser) {
+      throw new ApiError("User not found", 404);
+    }
+
+    if (existingUser.accountStatus !== "ACTIVE") {
+      throw new ApiError("Only active accounts can be deleted", 400);
+    }
+
+    if (existingUser.deletedAt) {
+      throw new ApiError("Account already deleted", 400);
+    }
+
+    if (existingUser.email !== email) {
       throw new ApiError("Invalid email", 400);
     }
 
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
     if (
+      existingUser.deleteAccountToken &&
+      existingUser.deletedAccountTokenUsed === false &&
       existingUser.deletionRequestSentAt &&
       existingUser.deletionRequestSentAt > fifteenMinutesAgo
     ) {
@@ -461,6 +489,102 @@ export class AuthService {
 
     return {
       message: "Delete account link has been sent to your email",
+    };
+  };
+
+  confirmDeleteAccount = async (
+    deleteAccountToken: string,
+    body: ConfirmDeletionAccountDTO,
+  ) => {
+    let payload: { id?: number; email?: string };
+    try {
+      payload = this.tokenService.verifyToken(
+        deleteAccountToken,
+        JWT_SECRET_KEY_DELETE_ACCOUNT,
+      ) as { id?: number; email?: string };
+    } catch (error) {
+      throw new ApiError("Invalid delete account token", 400);
+    }
+
+    const tokenUserId = Number(payload.id);
+    const tokenEmail = payload.email;
+
+    if (!tokenUserId || !tokenEmail) {
+      throw new ApiError("Invalid delete account token", 400);
+    }
+
+    const { password } = body;
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: tokenUserId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        accountStatus: true,
+        password: true,
+        deleteAccountToken: true,
+        deletedAccountTokenUsed: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!existingUser) {
+      throw new ApiError("User not found", 404);
+    }
+
+    if (
+      existingUser.email !== tokenEmail ||
+      existingUser.deleteAccountToken !== deleteAccountToken ||
+      existingUser.deletedAccountTokenUsed ||
+      existingUser.deletedAt
+    ) {
+      throw new ApiError("Invalid or already used delete account token", 400);
+    }
+
+    if (!existingUser.password) {
+      throw new ApiError("Account is not activated", 400);
+    }
+
+    const isPasswordValid = await this.passwordService.comparePassword(
+      password,
+      existingUser.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new ApiError("Invalid password", 400);
+    }
+    const deleteResult = await this.prisma.user.updateMany({
+      where: {
+        id: tokenUserId,
+        email: tokenEmail,
+        deleteAccountToken,
+        deletedAccountTokenUsed: false,
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+        accountStatus: "DELETED",
+        deleteAccountToken: null,
+        deletedAccountTokenUsed: true,
+      },
+    });
+
+    if (deleteResult.count !== 1) {
+      throw new ApiError("Delete account token already used", 400);
+    }
+
+    try {
+      await this.mailService.sendGoodByeEmail(
+        existingUser.email,
+        existingUser.firstName,
+      );
+    } catch (error) {
+      // Deletion already succeeded, email is best-effort.
+    }
+
+    return {
+      message: "Account deleted successfully",
     };
   };
 }

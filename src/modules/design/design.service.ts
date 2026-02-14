@@ -96,6 +96,20 @@ export class DesignService {
   };
 
   saveDesign = async (authUserId: number, body: SaveDesignDTO) => {
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        id: authUserId,
+      },
+      select: { id: true, accountStatus: true, deletedAt: true },
+    });
+    if (
+      !existingUser ||
+      existingUser.deletedAt ||
+      existingUser.accountStatus !== "ACTIVE"
+    ) {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
     const { designCode, designName, configuration } = body;
 
     const generateCode = customAlphabet(
@@ -141,7 +155,14 @@ export class DesignService {
 
   getSavedDesigns = async (authUserId: number) => {
     const savedDesigns = await this.prisma.userDesign.findMany({
-      where: { userId: authUserId, deletedAt: null },
+      where: {
+        userId: authUserId,
+        deletedAt: null,
+        user: {
+          accountStatus: "ACTIVE",
+          deletedAt: null,
+        },
+      },
     });
     if (!savedDesigns) {
       throw new ApiError("We couldn’t find your design code", 404);
@@ -150,8 +171,16 @@ export class DesignService {
   };
 
   getSavedDesignByCode = async (authUserId: number, designCode: string) => {
-    const savedDesign = await this.prisma.userDesign.findUnique({
-      where: { userId_designCode: { userId: authUserId, designCode } },
+    const savedDesign = await this.prisma.userDesign.findFirst({
+      where: {
+        userId: authUserId,
+        designCode,
+        deletedAt: null,
+        user: {
+          accountStatus: "ACTIVE",
+          deletedAt: null,
+        },
+      },
     });
     if (!savedDesign) {
       throw new ApiError("We couldn’t find your design code", 404);

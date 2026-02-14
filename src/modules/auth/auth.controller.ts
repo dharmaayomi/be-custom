@@ -6,7 +6,10 @@ import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
 import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
 import { ApiError } from "../../utils/api-error.js";
-import { RequestDeleteAccountDTO } from "./dto/deleteAccount.dto.js";
+import {
+  ConfirmDeletionAccountDTO,
+  RequestDeleteAccountDTO,
+} from "./dto/deleteAccount.dto.js";
 
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -47,7 +50,6 @@ export class AuthController {
     next: NextFunction,
   ) => {
     try {
-      const authUserId = Number(res.locals.user.id);
       const authHeader = req.headers.authorization;
       const emailVerificationToken = authHeader?.split(" ")[1];
       if (!emailVerificationToken) {
@@ -55,7 +57,6 @@ export class AuthController {
       }
       const body = req.body as VerificationDTO;
       const result = await this.authService.verifyEmailAndSetPassword(
-        authUserId,
         emailVerificationToken,
         body,
       );
@@ -115,6 +116,28 @@ export class AuthController {
       const body = req.body as RequestDeleteAccountDTO;
       const result = await this.authService.requestDeleteAccount(
         authUserId,
+        body,
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  confirmDeleteAccount = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const deleteAccountToken = authHeader?.split(" ")[1];
+      if (!deleteAccountToken) {
+        throw new ApiError("No token provided", 401);
+      }
+      const body = req.body as ConfirmDeletionAccountDTO;
+      const result = await this.authService.confirmDeleteAccount(
+        deleteAccountToken,
         body,
       );
       res.status(200).send(result);
