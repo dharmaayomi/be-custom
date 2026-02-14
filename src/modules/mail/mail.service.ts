@@ -75,8 +75,19 @@ export class MailService {
     resetPasswordLink: string,
     firstName: string,
   ): Promise<void> => {
-    await this.sendEmail(to, "Reset Password", "resetPassword", {
+    await this.sendEmail(to, "Reset Password", "reset-password", {
       resetPasswordLink,
+      firstName,
+    });
+  };
+
+  public sendRequestDeleteAccountEmail = async (
+    to: string,
+    deleteAccountLink: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Delete Account", "delete-account-request", {
+      deleteAccountLink,
       firstName,
     });
   };

@@ -32,4 +32,8 @@ export class VerificationDTO {
   @IsNotEmpty()
   @IsString()
   password!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  token!: string;
 }

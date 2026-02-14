@@ -8,12 +8,14 @@ import { MailService } from "../mail/mail.service.js";
 import {
   BASE_URL_FE,
   JWT_SECRET,
+  JWT_SECRET_KEY_DELETE_ACCOUNT,
   JWT_SECRET_KEY_RESET_PASSWORD,
   JWT_SECRET_KEY_VERIFICATION,
 } from "../../config/env.js";
 import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
 import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
+import { RequestDeleteAccountDTO } from "./dto/deleteAccount.dto.js";
 
 export class AuthService {
   constructor(
@@ -112,6 +114,8 @@ export class AuthService {
             phoneNumber,
             userName,
             verificationSentAt: new Date(),
+            emailVerificationToken,
+            emailVerificationUsed: false,
           },
         });
 
@@ -121,7 +125,21 @@ export class AuthService {
           firstName,
         );
 
-        return existingUser;
+        const refreshedUser = await this.prisma.user.findUnique({
+          where: { id: existingUser.id },
+        });
+        if (!refreshedUser) {
+          throw new ApiError("User not found", 404);
+        }
+        const {
+          password: pw,
+          emailVerificationToken: _evt,
+          resetPasswordToken: _rpt,
+          deleteAccountToken: _dat,
+          ...safeUser
+        } = refreshedUser;
+
+        return safeUser;
       }
 
       if (existingUser.email === email) {
@@ -152,6 +170,20 @@ export class AuthService {
       { expiresIn: "15m" },
     );
 
+    await this.prisma.user.update({
+      where: { id: newUser.id },
+      data: {
+        email,
+        userName,
+        firstName,
+        lastName,
+        phoneNumber,
+        verificationSentAt: new Date(),
+        emailVerificationToken,
+        emailVerificationUsed: false,
+      },
+    });
+
     const verificationLink = `${BASE_URL_FE}/register/set-password?token=${emailVerificationToken}`;
 
     await this.mailService.sendVerificationEmail(
@@ -160,33 +192,47 @@ export class AuthService {
       newUser.firstName,
     );
 
-    await this.prisma.user.update({
-      where: { id: newUser.id },
-      data: {
-        verificationSentAt: new Date(),
-      },
-    });
-
-    return newUser;
+    const {
+      password: pw,
+      emailVerificationToken: _evt,
+      resetPasswordToken: _rpt,
+      deleteAccountToken: _dat,
+      ...safeUser
+    } = newUser;
+    return safeUser;
   };
 
   verifyEmailAndSetPassword = async (
     authUserId: number,
+    emailVerificationToken: string,
     body: VerificationDTO,
   ) => {
+    try {
+      this.tokenService.verifyToken(
+        emailVerificationToken,
+        JWT_SECRET_KEY_VERIFICATION,
+      );
+    } catch (error) {
+      throw new ApiError("Invalid verification token", 400);
+    }
+
     const { password } = body;
 
-    const existingUser = await this.prisma.user.findUnique({
-      where: { id: authUserId },
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        id: authUserId,
+        emailVerificationToken,
+        emailVerificationUsed: false,
+        accountStatus: "PENDING",
+      },
       select: {
         id: true,
         password: true,
-        accountStatus: true,
       },
     });
 
     if (!existingUser) {
-      throw new ApiError("Invalid user/token", 400);
+      throw new ApiError("Invalid or already used verification token", 400);
     }
 
     if (existingUser.password) {
@@ -194,15 +240,40 @@ export class AuthService {
     }
 
     const hashedPassword = await this.passwordService.hashPassword(password);
-    const updatedUser = await this.prisma.user.update({
-      where: { id: authUserId },
+    const verifyUserResult = await this.prisma.user.updateMany({
+      where: {
+        id: authUserId,
+        emailVerificationToken,
+        emailVerificationUsed: false,
+        accountStatus: "PENDING",
+      },
       data: {
         password: hashedPassword,
         accountStatus: "ACTIVE",
+        emailVerificationToken: null,
+        emailVerificationUsed: true,
       },
     });
 
-    return updatedUser;
+    if (verifyUserResult.count !== 1) {
+      throw new ApiError("Verification token already used", 400);
+    }
+
+    const updatedUser = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+    });
+    if (!updatedUser) {
+      throw new ApiError("User not found", 404);
+    }
+
+    const {
+      password: pw,
+      emailVerificationToken: _evt,
+      resetPasswordToken: _rpt,
+      deleteAccountToken: _dat,
+      ...safeUser
+    } = updatedUser;
+    return safeUser;
   };
 
   changePassword = async (authUserId: number, body: ChangePasswordDTO) => {
@@ -327,6 +398,69 @@ export class AuthService {
     });
     return {
       message: "Password reset successfully",
+    };
+  };
+
+  requestDeleteAccount = async (
+    authUserId: number,
+    body: RequestDeleteAccountDTO,
+  ) => {
+    const { email } = body;
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      select: {
+        email: true,
+        id: true,
+        firstName: true,
+        deletionRequestSentAt: true,
+      },
+    });
+
+    if (existingUser?.email !== email) {
+      throw new ApiError("Invalid email", 400);
+    }
+
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    if (
+      existingUser.deletionRequestSentAt &&
+      existingUser.deletionRequestSentAt > fifteenMinutesAgo
+    ) {
+      throw new ApiError(
+        "Delete account request was recently sent. Please check your inbox.",
+        400,
+      );
+    }
+
+    const verificationPayload = {
+      id: existingUser.id,
+      email: existingUser.email,
+    };
+    const deleteAccountToken = this.tokenService.generateToken(
+      verificationPayload,
+      JWT_SECRET_KEY_DELETE_ACCOUNT,
+      { expiresIn: "15m" },
+    );
+
+    const verificationLink = `${BASE_URL_FE}/confirm-delete-account?token=${deleteAccountToken}`;
+
+    await this.prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        deleteAccountToken,
+        deletedAccountTokenUsed: false,
+        deletionRequestSentAt: new Date(),
+      },
+    });
+
+    await this.mailService.sendRequestDeleteAccountEmail(
+      existingUser.email,
+      verificationLink,
+      existingUser.firstName,
+    );
+
+    return {
+      message: "Delete account link has been sent to your email",
     };
   };
 }
