@@ -18,11 +18,11 @@ model Sample {
 }
 
 model User {
-  id                     Int          @id @default(autoincrement())
-  email                  String       @unique
-  password               String
-  role                   Role         @default(USER)
-  userName               String?      @unique
+  id                     Int            @id @default(autoincrement())
+  email                  String         @unique
+  password               String?
+  role                   Role           @default(USER)
+  userName               String?        @unique
   firstName              String
   lastName               String
   phoneNumber            String?
@@ -30,13 +30,22 @@ model User {
   resetPasswordToken     String?
   resetPasswordTokenUsed Boolean?
   verificationSentAt     DateTime?
+  accountStatus          AccountStatus? @default(PENDING)
   deletedAt              DateTime?
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
   addresses              Address[]
   userDesigns            UserDesign[]
 
   @@map("users")
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+  DELETED
 }
 
 model Address {

@@ -59,6 +59,17 @@ export class MailService {
     }
   };
 
+  public sendVerificationEmail = async (
+    to: string,
+    verificationLink: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Email Verification", "verif-email", {
+      verificationLink,
+      firstName,
+    });
+  };
+
   public sendResetPasswordEmail = async (
     to: string,
     resetPasswordLink: string,

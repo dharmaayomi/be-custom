@@ -1,12 +1,16 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller.js";
 import { LoginDTO } from "./dto/login.dto.js";
-import { RegisterDTO } from "./dto/register.dto.js";
+import { RegisterDTO, VerificationDTO } from "./dto/register.dto.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
 import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
+import {
+  JWT_SECRET_KEY_RESET_PASSWORD,
+  JWT_SECRET_KEY_VERIFICATION,
+} from "../../config/env.js";
 
 export class AuthRouter {
   private readonly router: Router = Router();
@@ -31,6 +35,12 @@ export class AuthRouter {
       this.validationMiddleware.validateBody(RegisterDTO),
       this.authController.register,
     );
+    this.router.post(
+      "/verify-set-password",
+      this.jwtMiddleware.verifyToken(JWT_SECRET_KEY_VERIFICATION),
+      this.validationMiddleware.validateBody(VerificationDTO),
+      this.authController.verifyEmailAndSetPassword,
+    );
 
     this.router.patch(
       "/change-password",
@@ -47,6 +57,7 @@ export class AuthRouter {
 
     this.router.post(
       "/reset-password",
+      this.jwtMiddleware.verifyToken(JWT_SECRET_KEY_RESET_PASSWORD),
       this.validationMiddleware.validateBody(ResetPasswordDTO),
       this.authController.resetPassword,
     );

@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { AuthService } from "./auth.service.js";
 import { LoginDTO } from "./dto/login.dto.js";
-import { RegisterDTO } from "./dto/register.dto.js";
+import { RegisterDTO, VerificationDTO } from "./dto/register.dto.js";
 import { ChangePasswordDTO } from "./dto/changePassword.dto.js";
 import { ForgotPasswordDTO } from "./dto/forgotPassword.dto.js";
 import { ResetPasswordDTO } from "./dto/resetPassword.dto.js";
@@ -35,6 +35,24 @@ export class AuthController {
         message: "User registered successfully",
         data: result,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyEmailAndSetPassword = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const body = req.body as VerificationDTO;
+      const result = await this.authService.verifyEmailAndSetPassword(
+        authUserId,
+        body,
+      );
+      res.status(200).send(result);
     } catch (error) {
       next(error);
     }
