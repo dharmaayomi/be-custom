@@ -21,13 +21,13 @@ export class UserRouter {
 
   private initializedRoutes = () => {
     this.router.get(
-      "/:id",
+      "/",
       this.jwtMiddleware.verifyToken(),
       this.userController.getUser,
     );
 
     this.router.get(
-      "/display/:id",
+      "/display",
       this.jwtMiddleware.verifyToken(),
       this.userController.getUserDisplay,
     );

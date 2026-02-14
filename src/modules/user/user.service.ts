@@ -6,10 +6,7 @@ import { EditAddressDTO } from "./dto/editAddress.dto.js";
 import { UpdateProfileDTO } from "./dto/updateProfile.dto.js";
 
 export class UserService {
-  constructor(
-    private prisma: PrismaClient,
-    private cloudinaryService: CloudinaryService,
-  ) {}
+  constructor(private prisma: PrismaClient) {}
 
   getUser = async (authUserId: number) => {
     const user = await this.prisma.user.findUnique({
@@ -17,8 +14,8 @@ export class UserService {
       include: { addresses: { where: { deletedAt: null } } },
     });
 
-    if (!user) {
-      throw new ApiError("We couldn’t find your account", 404);
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
     }
 
     const { password, ...rest } = user;
@@ -28,18 +25,37 @@ export class UserService {
   getUserDisplay = async (authUserId: number) => {
     const user = await this.prisma.user.findUnique({
       where: { id: authUserId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        userName: true,
+        role: true,
+        avatar: true,
+        accountStatus: true,
+        deletedAt: true,
+      },
     });
 
-    if (!user) {
-      throw new ApiError("We couldn’t find your account", 404);
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
     }
 
-    const { password, createdAt, updatedAt, phoneNumber, deletedAt, ...rest } =
-      user;
-    return { ...rest };
+    return user;
   };
 
   createAddress = async (authUserId: number, body: CreateAddressDTO) => {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: authUserId,
+      },
+      select: { id: true, accountStatus: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
     const { isDefault, ...addressData } = body;
 
     return await this.prisma.$transaction(async (tx) => {
@@ -88,6 +104,10 @@ export class UserService {
           id: addressId,
           userId: authUserId,
           deletedAt: null,
+          user: {
+            accountStatus: "ACTIVE",
+            deletedAt: null,
+          },
         },
         data: { ...addressData, isDefault },
       });
@@ -103,44 +123,38 @@ export class UserService {
   };
 
   deleteAddress = async (authUserId: number, addressId: number) => {
-    const user = await this.prisma.user.findUnique({
-      where: { id: authUserId },
-    });
-
-    if (!user) {
-      throw new ApiError("We couldn’t find your account", 404);
-    }
-
-    const address = await this.prisma.address.findUnique({
-      where: { id: addressId },
-    });
-
-    if (!address) {
-      throw new ApiError("We couldn’t find your address", 404);
-    }
-    if (address.userId !== authUserId) {
-      throw new ApiError("You are not authorized to delete this address", 403);
-    }
-
-    const deletedAddress = await this.prisma.address.update({
-      where: { id: addressId },
+    const deletedAddress = await this.prisma.address.updateMany({
+      where: {
+        id: addressId,
+        userId: authUserId,
+        deletedAt: null,
+        user: {
+          accountStatus: "ACTIVE",
+          deletedAt: null,
+        },
+      },
       data: { deletedAt: new Date() },
     });
+
+    if (deletedAddress.count === 0) {
+      throw new ApiError("We couldn't find your address", 404);
+    }
+
     return { message: "Address deleted successfully" };
   };
 
   getAddresses = async (authUserId: number) => {
-    const user = await this.prisma.user.findUnique({
-      where: { id: authUserId },
-    });
-
-    if (!user) {
-      throw new ApiError("We couldn’t find your account", 404);
-    }
-
     const addresses = await this.prisma.address.findMany({
-      where: { userId: authUserId, deletedAt: null },
+      where: {
+        userId: authUserId,
+        deletedAt: null,
+        user: {
+          accountStatus: "ACTIVE",
+          deletedAt: null,
+        },
+      },
     });
+
     return addresses;
   };
 
@@ -150,6 +164,10 @@ export class UserService {
         id: addressId,
         userId: authUserId,
         deletedAt: null,
+        user: {
+          accountStatus: "ACTIVE",
+          deletedAt: null,
+        },
       },
     });
 
@@ -161,22 +179,42 @@ export class UserService {
   };
 
   updateProfile = async (authUserId: number, body: UpdateProfileDTO) => {
-    const updatedUser = await this.prisma.user.update({
-      where: { id: authUserId },
+    const updatedUser = await this.prisma.user.updateMany({
+      where: { id: authUserId, deletedAt: null, accountStatus: "ACTIVE" },
       data: {
         ...body,
       },
     });
-    return updatedUser;
+    if (updatedUser.count === 0) {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+    });
+    if (!user) {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+    return user;
   };
 
   updateAvatar = async (authuserId: number, avatarUrl: string) => {
-    const updatedAvatar = await this.prisma.user.update({
-      where: { id: authuserId },
+    const updatedAvatar = await this.prisma.user.updateMany({
+      where: { id: authuserId, deletedAt: null, accountStatus: "ACTIVE" },
       data: {
         avatar: avatarUrl,
       },
     });
-    return updatedAvatar;
+    if (updatedAvatar.count === 0) {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: authuserId },
+    });
+    if (!user) {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+    return user;
   };
 }

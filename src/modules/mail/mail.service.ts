@@ -59,13 +59,44 @@ export class MailService {
     }
   };
 
+  public sendVerificationEmail = async (
+    to: string,
+    verificationLink: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Email Verification", "verif-email", {
+      verificationLink,
+      firstName,
+    });
+  };
+
   public sendResetPasswordEmail = async (
     to: string,
     resetPasswordLink: string,
     firstName: string,
   ): Promise<void> => {
-    await this.sendEmail(to, "Reset Password", "resetPassword", {
+    await this.sendEmail(to, "Reset Password", "reset-password", {
       resetPasswordLink,
+      firstName,
+    });
+  };
+
+  public sendRequestDeleteAccountEmail = async (
+    to: string,
+    deleteAccountLink: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Delete Account", "delete-account-request", {
+      deleteAccountLink,
+      firstName,
+    });
+  };
+
+  public sendGoodByeEmail = async (
+    to: string,
+    firstName: string,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Goodbye from Byte Beyond Persona", "good-bye", {
       firstName,
     });
   };

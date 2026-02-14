@@ -13,11 +13,6 @@ export class RegisterDTO {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(6)
-  password!: string;
-
-  @IsString()
-  @IsNotEmpty()
   firstName!: string;
 
   @IsString()
@@ -31,4 +26,10 @@ export class RegisterDTO {
   @IsString()
   @IsOptional()
   phoneNumber?: string;
+}
+
+export class VerificationDTO {
+  @IsNotEmpty()
+  @IsString()
+  password!: string;
 }

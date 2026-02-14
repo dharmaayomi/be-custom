@@ -13,7 +13,7 @@ export class UserController {
   ) {}
 
   getUser = async (req: Request, res: Response, next: NextFunction) => {
-    const authUserId = Number(req.params.id);
+    const authUserId = Number(res.locals.user.id);
     const result = await this.userService.getUser(authUserId);
     res.status(200).send(result);
   };
