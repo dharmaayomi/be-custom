@@ -40,6 +40,11 @@ export class DesignRouter {
       this.jwtMiddleware.verifyToken(),
       this.designController.getSavedDesigns,
     );
+    this.router.delete(
+      "/delete/:designCode",
+      this.jwtMiddleware.verifyToken(),
+      this.designController.deleteDesign,
+    );
   };
 
   getRouter = () => {

@@ -69,4 +69,18 @@ export class DesignController {
       next(error);
     }
   };
+
+  deleteDesign = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUserId = res.locals.user.id;
+      const designCode = req.params.designCode;
+      const result = await this.designService.deleteDesign(
+        authUserId,
+        designCode,
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
