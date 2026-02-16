@@ -187,4 +187,19 @@ export class DesignService {
     }
     return savedDesign;
   };
+
+  deleteDesign = async (authUserId: number, designCode: string) => {
+    await this.prisma.userDesign.update({
+      where: {
+        userId_designCode: {
+          userId: authUserId,
+          designCode,
+        },
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+    return { message: "Design deleted successfully" };
+  };
 }
