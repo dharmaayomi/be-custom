@@ -3,6 +3,7 @@ import { ProductController } from "./product.controller.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { CreateProductDTO } from "./dto/createProduct.dto.js";
+import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 
 export class ProductRouter {
   private router = Router();
@@ -16,6 +17,12 @@ export class ProductRouter {
   }
 
   private initializedRoutes = () => {
+    this.router.get(
+      "/",
+      this.jwtMiddleware.verifyToken(),
+      this.validationMiddleware.validateQuery(GetProductsQueryDTO),
+      this.productController.getProducts,
+    );
     this.router.post(
       "/upload-signature/image",
       this.jwtMiddleware.verifyToken(),

@@ -87,6 +87,10 @@ model ProductBase {
   productUrl       String
   description      String
   basePrice        Float
+  width            Int?
+  height           Int?
+  depth            Int?
+  weight           Int?
   images           String[]
   isActive         Boolean           @default(true)
   isCustomizable   Boolean           @default(true)
@@ -105,6 +109,7 @@ model ProductComponent {
   category              ComponentCategory
   componentDesc         String
   price                 Float
+  weight                Int
   componentImageUrls    String[]
   isActive              Boolean
   customOrderComponents CustomOrderComponent[]
@@ -159,21 +164,31 @@ model UserDesign {
 }
 
 model CustomOrder {
-  id              Int         @id @default(autoincrement())
-  userId          Int
-  user            User        @relation(fields: [userId], references: [id])
-  userDesignId    Int
-  userDesign      UserDesign? @relation(fields: [userDesignId], references: [id])
-  snapShotAddress Json
-  status          OrderStatus @default(PENDING_PAYMENT)
+  id                Int               @id @default(autoincrement())
+  userId            Int
+  user              User              @relation(fields: [userId], references: [id])
+  userDesignId      Int
+  userDesign        UserDesign?       @relation(fields: [userDesignId], references: [id])
+  snapShotAddress   Json
+  status            OrderStatus       @default(PENDING_PAYMENT)
+  subtotalPrice     Float? // price of total item
+  deliveryType      DeliveryType      @default(DELIVERY)
+  deliveryDistancce Float?
+  deliveryFee       Float?
+  trackNumber       String?
+  totalWeight       Float?
+  items             CustomOrderItem[]
+  grandTotalPrice   Float // price of total item plus delivery fee
+  deletedAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  address           Address?          @relation(fields: [addressId], references: [id])
+  addressId         Int?
+}
 
-  globalTotalPrice Float
-  items            CustomOrderItem[]
-  deletedAt        DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  address          Address?          @relation(fields: [addressId], references: [id])
-  addressId        Int?
+enum DeliveryType {
+  DELIVERY
+  PICKUP
 }
 
 enum OrderStatus {
