@@ -25,6 +25,11 @@ export class DesignRouter {
       this.designController.getShareableDesign,
     );
     this.router.post(
+      "/preview-upload-signature",
+      this.jwtMiddleware.verifyToken(),
+      this.designController.getDesignPreviewUploadSignature,
+    );
+    this.router.post(
       "/save-design",
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(SaveDesignDTO),

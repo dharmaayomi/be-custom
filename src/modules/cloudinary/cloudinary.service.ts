@@ -49,6 +49,44 @@ export class CloudinaryService {
     });
   };
 
+  public getDesignPreviewUploadSignature = (authUserId: number) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = `custom_be/designs/${authUserId}`;
+    const signature = cloudinary.utils.api_sign_request(
+      { folder, timestamp },
+      CLOUDINARY_API_SECRET as string,
+    );
+
+    return {
+      timestamp,
+      folder,
+      signature,
+      apiKey: CLOUDINARY_API_KEY,
+      cloudName: CLOUDINARY_CLOUD_NAME,
+    };
+  };
+
+  public getProductUploadSignature = (
+    authUserId: number,
+    resourceType: "image" | "raw",
+  ) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = `custom_be/products/${authUserId}/${resourceType}`;
+    const signature = cloudinary.utils.api_sign_request(
+      { folder, timestamp },
+      CLOUDINARY_API_SECRET as string,
+    );
+
+    return {
+      timestamp,
+      folder,
+      signature,
+      resourceType,
+      apiKey: CLOUDINARY_API_KEY,
+      cloudName: CLOUDINARY_CLOUD_NAME,
+    };
+  };
+
   public remove = async (secureUrl: string): Promise<any> => {
     try {
       const publicId = this.extractPublicIdFromUrl(secureUrl);

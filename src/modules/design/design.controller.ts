@@ -1,9 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import { DesignService } from "./design.service.js";
 import { SaveDesignDTO } from "./dto/saveDesignDto.js";
+import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 
 export class DesignController {
-  constructor(private designService: DesignService) {}
+  constructor(
+    private designService: DesignService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   generateSharableDesignCode = async (
     req: Request,
@@ -36,6 +40,21 @@ export class DesignController {
       const authUserId = res.locals.user.id;
       const body = req.body as SaveDesignDTO;
       const result = await this.designService.saveDesign(authUserId, body);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getDesignPreviewUploadSignature = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const result =
+        this.cloudinaryService.getDesignPreviewUploadSignature(authUserId);
       res.status(200).send(result);
     } catch (error) {
       next(error);

@@ -25,6 +25,9 @@ import { DesignRouter } from "./modules/design/design.router.js";
 import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
 import { RoleMiddleware } from "./middlewares/role.middleware.js";
 import { UploaderMiddleware } from "./middlewares/uploader.middleware.js";
+import { ProductService } from "./modules/product/product.service.js";
+import { ProductController } from "./modules/product/product.controller.js";
+import { ProductRouter } from "./modules/product/product.router.js";
 
 export class App {
   app: Express;
@@ -60,12 +63,20 @@ export class App {
     const cloudinaryService = new CloudinaryService();
     const userService = new UserService(prismaClient);
     const designService = new DesignService(prismaClient);
+    const productService = new ProductService(prismaClient);
 
     // controllers
     const sampleController = new SampleController(sampleService);
     const authController = new AuthController(authService);
     const userController = new UserController(userService, cloudinaryService);
-    const designController = new DesignController(designService);
+    const designController = new DesignController(
+      designService,
+      cloudinaryService,
+    );
+    const productController = new ProductController(
+      productService,
+      cloudinaryService,
+    );
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
@@ -94,12 +105,18 @@ export class App {
       validationMiddleware,
       jwtMiddleware,
     );
+    const productRouter = new ProductRouter(
+      productController,
+      validationMiddleware,
+      jwtMiddleware,
+    );
 
     // routes
     // this.app.use("/samples", sampleRouter.getRouter());
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/user", userRouter.getRouter());
     this.app.use("/design", designRouter.getRouter());
+    this.app.use("/product", productRouter.getRouter());
   }
 
   private handleError() {

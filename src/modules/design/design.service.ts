@@ -4,7 +4,7 @@ import { PrismaClient } from "../../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import { createSharableDesignDTO } from "./dto/createSharableDesign.dto.js";
 import { addDays } from "date-fns";
-import { customAlphabet, nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
 import { SaveDesignDTO } from "./dto/saveDesignDto.js";
 
 export class DesignService {
@@ -110,7 +110,8 @@ export class DesignService {
       throw new ApiError("We couldn't find your account", 404);
     }
 
-    const { designCode, designName, configuration } = body;
+    const { designCode, designName, configuration, previewUrl, fileFinalUrl } =
+      body;
 
     const generateCode = customAlphabet(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
@@ -136,6 +137,8 @@ export class DesignService {
           update: {
             configuration,
             ...(designName ? { designName: finalDesignName } : {}),
+            ...(previewUrl ? { previewUrl } : {}),
+            ...(fileFinalUrl ? { fileFinalUrl } : {}),
             deletedAt: null,
           },
           create: {
@@ -143,6 +146,8 @@ export class DesignService {
             designCode: finalDesignCode,
             designName: finalDesignName,
             configuration,
+            previewUrl,
+            fileFinalUrl,
           },
         });
       } catch (e: any) {

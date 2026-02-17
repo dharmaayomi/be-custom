@@ -41,6 +41,7 @@ model User {
   updatedAt               DateTime       @updatedAt
   addresses               Address[]
   userDesigns             UserDesign[]
+  customOrders            CustomOrder[]
 
   @@map("users")
 }
@@ -54,9 +55,9 @@ enum AccountStatus {
 }
 
 model Address {
-  id            Int       @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   userId        Int
-  user          User      @relation(fields: [userId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
   label         String
   recipientName String
   phoneNumber   String
@@ -71,47 +72,69 @@ model Address {
   postalCode    Int
   isDefault     Boolean
   deletedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orders        CustomOrder[]
 
   @@index([userId, isDefault])
   @@map("addresses")
 }
 
-model Product {
-  id              Int       @id @default(autoincrement())
-  productName     String
-  SKU             String
-  product_url     String
-  productCategory String
-  description     String
-  isActive        Boolean
-  isCustomizable  Boolean
-  images          String[]
-  deletedAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+model ProductBase {
+  id               Int               @id @default(autoincrement())
+  productName      String
+  sku              String
+  productUrl       String
+  description      String
+  basePrice        Float
+  images           String[]
+  isActive         Boolean           @default(true)
+  isCustomizable   Boolean           @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  customOrderItems CustomOrderItem[]
 
   @@map("products")
 }
 
-model ProductPart {
-  id                Int @id @default(autoincrement())
-  productMaterialId Int
+model ProductComponent {
+  id                    Int                    @id @default(autoincrement())
+  componentName         String
+  componentUrl          String
+  category              ComponentCategory
+  componentDesc         String
+  price                 Float
+  componentImageUrls    String[]
+  isActive              Boolean
+  customOrderComponents CustomOrderComponent[]
 
-  @@map("productParts")
+  @@map("productComponents")
 }
 
 model ProductMaterials {
-  id                  Int       @id @default(autoincrement())
-  productMaterialName String
-  materialDesc        String
-  isActive            Boolean
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  deletedAt           DateTime?
+  id                Int               @id @default(autoincrement())
+  materialName      String
+  materialUrl       String
+  materialDesc      String
+  meterialImageUrls String[]
+  isActive          Boolean
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  customOrderItems  CustomOrderItem[]
 
   @@map("productMaterials")
+}
+
+enum ComponentCategory {
+  SHELF
+  DRAWER
+  HANGER
+  DOOR
+  RAIL
+  ACCESSORY
+  HARDWARE
 }
 
 model UserDesign {
@@ -121,15 +144,71 @@ model UserDesign {
   designCode    String
   designName    String
   configuration Json
+  previewUrl    String?
   fileFinalUrl  String?
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime? @updatedAt
 
+  orders CustomOrder[]
+
   @@unique([userId, designName])
   @@unique([userId, designCode])
   @@index([userId, deletedAt])
   @@map("userDesigns")
+}
+
+model CustomOrder {
+  id              Int         @id @default(autoincrement())
+  userId          Int
+  user            User        @relation(fields: [userId], references: [id])
+  userDesignId    Int
+  userDesign      UserDesign? @relation(fields: [userDesignId], references: [id])
+  snapShotAddress Json
+  status          OrderStatus @default(PENDING_PAYMENT)
+
+  globalTotalPrice Float
+  items            CustomOrderItem[]
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  address          Address?          @relation(fields: [addressId], references: [id])
+  addressId        Int?
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSED
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+model CustomOrderItem {
+  id                  Int               @id @default(autoincrement())
+  customOrderId       Int
+  customOrder         CustomOrder       @relation(fields: [customOrderId], references: [id])
+  productBaseId       Int
+  productBase         ProductBase       @relation(fields: [productBaseId], references: [id])
+  materialId          Int?
+  material            ProductMaterials? @relation(fields: [materialId], references: [id])
+  lockedBasePrice     Float
+  lockedMaterialPrice Float
+  itemTotalPrice      Float
+
+  components CustomOrderComponent[]
+}
+
+model CustomOrderComponent {
+  id                 Int              @id @default(autoincrement())
+  customOrderItemId  Int
+  customOrderItem    CustomOrderItem  @relation(fields: [customOrderItemId], references: [id])
+  componentId        Int
+  component          ProductComponent @relation(fields: [componentId], references: [id])
+  quantity           Int
+  lockedPricePerUnit Float
+  lockedSubTotal     Float
 }
 
 model ShareableDesign {
@@ -145,16 +224,4 @@ model ShareableDesign {
 enum Role {
   USER
   ADMIN
-}
-
-enum ProductCategory {
-  FRAME
-  ADD_ON_UNITS
-  LAMP
-  HANGER
-  TRAY
-  DRAWER
-  LIGHTING_SHELVES
-  GLASSES
-  DOOR
 }
