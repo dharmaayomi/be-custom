@@ -1,21 +1,18 @@
 import { Prisma, PrismaClient } from "../../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
+import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
 import { CreateProductDTO } from "./dto/createProduct.dto.js";
+import { EditProductDTO } from "./dto/editProduct.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 
 export class ProductService {
   private paginationService = new PaginationService();
 
-  constructor(private prisma: PrismaClient) {}
-
-  private parseBasePrice = (value: string) => {
-    const parsed = Number(value);
-    if (Number.isNaN(parsed) || parsed < 0) {
-      throw new ApiError("basePrice must be a valid non-negative number", 400);
-    }
-    return parsed;
-  };
+  constructor(
+    private prisma: PrismaClient,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   private parseOptionalInt = (
     value: number | string | undefined,
@@ -84,7 +81,6 @@ export class ProductService {
     const normalizedDepth = this.parseOptionalInt(depth, "depth");
     const normalizedWeight = this.parseOptionalInt(weight, "weight");
 
-    // const normalizedBasePrice = this.parseBasePrice(basePrice);
     const normalizedImages = images
       .map((image) => image.trim())
       .filter(Boolean);
@@ -123,21 +119,7 @@ export class ProductService {
     });
   };
 
-  getProducts = async (authUserId: number, query: GetProductsQueryDTO) => {
-    const admin = await this.prisma.user.findUnique({
-      where: { id: authUserId },
-      select: { role: true, deletedAt: true, accountStatus: true },
-    });
-
-    if (
-      !admin ||
-      admin.role !== "ADMIN" ||
-      admin.deletedAt ||
-      admin.accountStatus !== "ACTIVE"
-    ) {
-      throw new ApiError("You are not authorized to get products", 403);
-    }
-
+  getProducts = async (query: GetProductsQueryDTO) => {
     const {
       page,
       perPage,
@@ -249,5 +231,128 @@ export class ProductService {
       data,
       meta,
     };
+  };
+
+  getProductById = async (productId: string) => {
+    const product = await this.prisma.productBase.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product || product.deletedAt) {
+      throw new ApiError("Product not found", 404);
+    }
+
+    return product;
+  };
+
+  editProduct = async (
+    authUserId: number,
+    productId: string,
+    body: EditProductDTO,
+  ) => {
+    const admin = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      select: { role: true, deletedAt: true, accountStatus: true },
+    });
+
+    if (
+      !admin ||
+      admin.role !== "ADMIN" ||
+      admin.deletedAt ||
+      admin.accountStatus !== "ACTIVE"
+    ) {
+      throw new ApiError("You are not authorized to create a product", 403);
+    }
+
+    const product = await this.prisma.productBase.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product || product.deletedAt) {
+      throw new ApiError("Product not found", 404);
+    }
+
+    const hasField = (field: keyof EditProductDTO) =>
+      Object.prototype.hasOwnProperty.call(body, field);
+
+    const updateData: Prisma.ProductBaseUpdateInput = {};
+
+    if (hasField("productName") && typeof body.productName === "string") {
+      updateData.productName = body.productName.trim();
+    }
+    if (hasField("sku") && typeof body.sku === "string") {
+      updateData.sku = body.sku.trim();
+    }
+    if (hasField("productUrl") && typeof body.productUrl === "string") {
+      updateData.productUrl = body.productUrl.trim();
+    }
+    if (hasField("description") && typeof body.description === "string") {
+      updateData.description = body.description.trim();
+    }
+    if (hasField("basePrice") && typeof body.basePrice !== "undefined") {
+      updateData.basePrice = body.basePrice;
+    }
+    if (hasField("width") && typeof body.width !== "undefined") {
+      updateData.width = this.parseOptionalInt(body.width, "width");
+    }
+    if (hasField("height") && typeof body.height !== "undefined") {
+      updateData.height = this.parseOptionalInt(body.height, "height");
+    }
+    if (hasField("depth") && typeof body.depth !== "undefined") {
+      updateData.depth = this.parseOptionalInt(body.depth, "depth");
+    }
+    if (hasField("weight") && typeof body.weight !== "undefined") {
+      updateData.weight = this.parseOptionalInt(body.weight, "weight");
+    }
+    if (hasField("images") && Array.isArray(body.images)) {
+      const normalizedImages = body.images
+        .map((image) => image.trim())
+        .filter(Boolean);
+
+      if (normalizedImages.length === 0) {
+        throw new ApiError("images is required", 400);
+      }
+
+      updateData.images = normalizedImages;
+    }
+
+    if (
+      typeof updateData.productUrl === "string" &&
+      updateData.productUrl !== product.productUrl
+    ) {
+      try {
+        await this.cloudinaryService.remove(product.productUrl, "raw");
+      } catch (removeError) {
+        // Keep edit flow running even if cleanup fails.
+        console.error("Failed to remove old product file:", removeError);
+      }
+    }
+
+    if (Array.isArray(updateData.images)) {
+      const newImages = new Set(updateData.images);
+      const oldImagesToRemove = product.images.filter(
+        (imageUrl) => !newImages.has(imageUrl),
+      );
+
+      await Promise.all(
+        oldImagesToRemove.map(async (imageUrl) => {
+          try {
+            await this.cloudinaryService.remove(imageUrl, "image");
+          } catch (removeError) {
+            // Keep edit flow running even if cleanup fails.
+            console.error("Failed to remove old product image:", removeError);
+          }
+        }),
+      );
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return product;
+    }
+
+    return await this.prisma.productBase.update({
+      where: { id: productId },
+      data: updateData,
+    });
   };
 }

@@ -63,7 +63,7 @@ export class App {
     const cloudinaryService = new CloudinaryService();
     const userService = new UserService(prismaClient);
     const designService = new DesignService(prismaClient, cloudinaryService);
-    const productService = new ProductService(prismaClient);
+    const productService = new ProductService(prismaClient, cloudinaryService);
 
     // controllers
     const sampleController = new SampleController(sampleService);
@@ -85,10 +85,7 @@ export class App {
     const uploaderMiddleware = new UploaderMiddleware();
 
     // routers
-    const sampleRouter = new SampleRouter(
-      sampleController,
-      validationMiddleware,
-    );
+
     const authRouter = new AuthRouter(
       authController,
       validationMiddleware,

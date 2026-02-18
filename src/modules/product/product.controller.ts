@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { plainToInstance } from "class-transformer";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 import { CreateProductDTO } from "./dto/createProduct.dto.js";
+import { EditProductDTO } from "./dto/editProduct.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 import { ProductService } from "./product.service.js";
 
@@ -58,11 +59,33 @@ export class ProductController {
 
   getProducts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const authUserId = Number(res.locals.user.id);
       const queryDto = plainToInstance(GetProductsQueryDTO, req.query);
-      const result = await this.productService.getProducts(
+      const result = await this.productService.getProducts(queryDto);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getProductById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const productId = req.params.id;
+      const result = await this.productService.getProductById(productId);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  editProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const productId = req.params.id;
+      const body = req.body as EditProductDTO;
+      const result = await this.productService.editProduct(
         authUserId,
-        queryDto,
+        productId,
+        body,
       );
       res.status(200).send(result);
     } catch (error) {

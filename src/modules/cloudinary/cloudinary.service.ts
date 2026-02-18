@@ -45,6 +45,19 @@ export class CloudinaryService {
     return publicIdParts.join("/");
   };
 
+  private extractResourceTypeFromUrl = (url: string): "image" | "raw" => {
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    const uploadIndex = pathParts.findIndex((part) => part === "upload");
+
+    if (uploadIndex <= 0) {
+      return "image";
+    }
+
+    const resourceType = pathParts[uploadIndex - 1];
+    return resourceType === "raw" ? "raw" : "image";
+  };
+
   public upload = (file: Express.Multer.File): Promise<UploadApiResponse> => {
     return new Promise((resolve, reject) => {
       const readableStream = this.bufferToStream(file.buffer);
@@ -103,10 +116,17 @@ export class CloudinaryService {
     };
   };
 
-  public remove = async (secureUrl: string): Promise<any> => {
+  public remove = async (
+    secureUrl: string,
+    resourceType?: "image" | "raw",
+  ): Promise<any> => {
     try {
       const publicId = this.extractPublicIdFromUrl(secureUrl);
-      return await cloudinary.uploader.destroy(publicId);
+      const finalResourceType =
+        resourceType ?? this.extractResourceTypeFromUrl(secureUrl);
+      return await cloudinary.uploader.destroy(publicId, {
+        resource_type: finalResourceType,
+      });
     } catch (error) {
       console.error("Cloudinary Remove Error:", error);
       throw error;
