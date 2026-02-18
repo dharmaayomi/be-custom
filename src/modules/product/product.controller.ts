@@ -22,20 +22,6 @@ export class ProductController {
     }
   };
 
-  getProducts = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const authUserId = Number(res.locals.user.id);
-      const queryDto = plainToInstance(GetProductsQueryDTO, req.query);
-      const result = await this.productService.getProducts(
-        authUserId,
-        queryDto,
-      );
-      res.status(200).send(result);
-    } catch (error) {
-      next(error);
-    }
-  };
-
   getImageUploadSignature = async (
     req: Request,
     res: Response,
@@ -63,6 +49,20 @@ export class ProductController {
       const result = this.cloudinaryService.getProductUploadSignature(
         authUserId,
         "raw",
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const queryDto = plainToInstance(GetProductsQueryDTO, req.query);
+      const result = await this.productService.getProducts(
+        authUserId,
+        queryDto,
       );
       res.status(200).send(result);
     } catch (error) {

@@ -1,7 +1,6 @@
 import { Prisma, PrismaClient } from "../../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import { PaginationService } from "../pagination/pagination.service.js";
-import { SortOrder } from "../pagination/types.js";
 import { CreateProductDTO } from "./dto/createProduct.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 
@@ -85,7 +84,7 @@ export class ProductService {
     const normalizedDepth = this.parseOptionalInt(depth, "depth");
     const normalizedWeight = this.parseOptionalInt(weight, "weight");
 
-    const normalizedBasePrice = this.parseBasePrice(basePrice);
+    // const normalizedBasePrice = this.parseBasePrice(basePrice);
     const normalizedImages = images
       .map((image) => image.trim())
       .filter(Boolean);
@@ -112,7 +111,7 @@ export class ProductService {
         sku: normalizedSku,
         productUrl: normalizedProductUrl,
         description: normalizedDescription,
-        basePrice: normalizedBasePrice,
+        basePrice,
         width: normalizedWidth,
         height: normalizedHeight,
         depth: normalizedDepth,

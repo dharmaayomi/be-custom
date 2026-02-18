@@ -62,7 +62,7 @@ export class App {
     );
     const cloudinaryService = new CloudinaryService();
     const userService = new UserService(prismaClient);
-    const designService = new DesignService(prismaClient);
+    const designService = new DesignService(prismaClient, cloudinaryService);
     const productService = new ProductService(prismaClient);
 
     // controllers
@@ -109,6 +109,7 @@ export class App {
       productController,
       validationMiddleware,
       jwtMiddleware,
+      roleMiddleware,
     );
 
     // routes
@@ -124,8 +125,18 @@ export class App {
   }
 
   public start() {
-    this.app.listen(PORT, () => {
+    this.app.listen(PORT, async () => {
       console.log(`Server running on port: ${PORT}`);
+      try {
+        // Memicu koneksi ke Supabase agar request pertama user tidak lambat
+        await prisma.$connect();
+        console.log("Database connection established and warmed up.");
+      } catch (error) {
+        console.error(
+          "Failed to connect to the database during startup:",
+          error,
+        );
+      }
     });
   }
 }

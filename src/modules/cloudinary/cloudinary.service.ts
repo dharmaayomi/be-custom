@@ -24,9 +24,25 @@ export class CloudinaryService {
   };
 
   private extractPublicIdFromUrl = (url: string): string => {
-    const urlParts = url.split("/");
-    const lastPart = urlParts[urlParts.length - 1];
-    return lastPart.split(".")[0];
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    const uploadIndex = pathParts.findIndex((part) => part === "upload");
+
+    if (uploadIndex === -1 || uploadIndex + 1 >= pathParts.length) {
+      throw new Error("Invalid Cloudinary URL");
+    }
+
+    // Example URL path:
+    // /<cloud_name>/image/upload/v123/custom_be/designs/20/file.jpg
+    const publicIdParts = pathParts.slice(uploadIndex + 1);
+    if (publicIdParts[0]?.startsWith("v")) {
+      publicIdParts.shift();
+    }
+
+    const last = publicIdParts[publicIdParts.length - 1];
+    publicIdParts[publicIdParts.length - 1] = last.replace(/\.[^.]+$/, "");
+
+    return publicIdParts.join("/");
   };
 
   public upload = (file: Express.Multer.File): Promise<UploadApiResponse> => {

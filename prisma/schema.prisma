@@ -5,6 +5,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url       = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 model Sample {
@@ -81,12 +83,12 @@ model Address {
 }
 
 model ProductBase {
-  id               Int               @id @default(autoincrement())
+  id               String            @id @default(cuid())
   productName      String
   sku              String
   productUrl       String
   description      String
-  basePrice        Float
+  basePrice        Int
   width            Int?
   height           Int?
   depth            Int?
@@ -103,7 +105,7 @@ model ProductBase {
 }
 
 model ProductComponent {
-  id                    Int                    @id @default(autoincrement())
+  id                    String                 @id @default(cuid())
   componentName         String
   componentUrl          String
   category              ComponentCategory
@@ -118,7 +120,7 @@ model ProductComponent {
 }
 
 model ProductMaterials {
-  id                Int               @id @default(autoincrement())
+  id                String            @id @default(cuid())
   materialName      String
   materialUrl       String
   materialDesc      String
@@ -164,7 +166,7 @@ model UserDesign {
 }
 
 model CustomOrder {
-  id                Int               @id @default(autoincrement())
+  id                String            @id @default(cuid())
   userId            Int
   user              User              @relation(fields: [userId], references: [id])
   userDesignId      Int
@@ -201,12 +203,12 @@ enum OrderStatus {
 }
 
 model CustomOrderItem {
-  id                  Int               @id @default(autoincrement())
-  customOrderId       Int
+  id                  String            @id @default(cuid())
+  customOrderId       String
   customOrder         CustomOrder       @relation(fields: [customOrderId], references: [id])
-  productBaseId       Int
+  productBaseId       String
   productBase         ProductBase       @relation(fields: [productBaseId], references: [id])
-  materialId          Int?
+  materialId          String?
   material            ProductMaterials? @relation(fields: [materialId], references: [id])
   lockedBasePrice     Float
   lockedMaterialPrice Float
@@ -216,11 +218,11 @@ model CustomOrderItem {
 }
 
 model CustomOrderComponent {
-  id                 Int              @id @default(autoincrement())
-  customOrderItemId  Int
-  customOrderItem    CustomOrderItem  @relation(fields: [customOrderItemId], references: [id])
-  componentId        Int
-  component          ProductComponent @relation(fields: [componentId], references: [id])
+  id                 String            @id @default(cuid())
+  customOrderItemId  String
+  customOrderItem    CustomOrderItem   @relation(fields: [customOrderItemId], references: [id])
+  componentId        String
+  productComponent   ProductComponent? @relation(fields: [componentId], references: [id])
   quantity           Int
   lockedPricePerUnit Float
   lockedSubTotal     Float

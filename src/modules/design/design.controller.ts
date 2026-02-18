@@ -1,7 +1,9 @@
 import { NextFunction, Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
 import { DesignService } from "./design.service.js";
 import { SaveDesignDTO } from "./dto/saveDesignDto.js";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
+import { PaginationQueryParams } from "../pagination/dto/pagination.dto.js";
 
 export class DesignController {
   constructor(
@@ -64,7 +66,11 @@ export class DesignController {
   getSavedDesigns = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUserId = res.locals.user.id;
-      const result = await this.designService.getSavedDesigns(authUserId);
+      const queryDto = plainToInstance(PaginationQueryParams, req.query);
+      const result = await this.designService.getSavedDesigns(
+        authUserId,
+        queryDto,
+      );
       res.status(200).send(result);
     } catch (error) {
       next(error);

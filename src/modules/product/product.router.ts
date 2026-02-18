@@ -4,6 +4,7 @@ import { ValidationMiddleware } from "../../middlewares/validation.middleware.js
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { CreateProductDTO } from "./dto/createProduct.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
+import { RoleMiddleware } from "../../middlewares/role.middleware.js";
 
 export class ProductRouter {
   private router = Router();
@@ -12,6 +13,7 @@ export class ProductRouter {
     private productController: ProductController,
     private validationMiddleware: ValidationMiddleware,
     private jwtMiddleware: JwtMiddleware,
+    private roleMiddleware: RoleMiddleware,
   ) {
     this.initializedRoutes();
   }
@@ -26,16 +28,19 @@ export class ProductRouter {
     this.router.post(
       "/upload-signature/image",
       this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
       this.productController.getImageUploadSignature,
     );
     this.router.post(
       "/upload-signature/glb",
       this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
       this.productController.getGlbUploadSignature,
     );
     this.router.post(
       "/",
       this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(CreateProductDTO),
       this.productController.createProduct,
     );

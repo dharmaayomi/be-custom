@@ -26,9 +26,9 @@ export class CreateProductDTO {
   @IsNotEmpty()
   description!: string;
 
-  @IsString()
+  @IsNumber()
   @IsNotEmpty()
-  basePrice!: string;
+  basePrice!: number;
 
   @IsNumber()
   @IsOptional()
