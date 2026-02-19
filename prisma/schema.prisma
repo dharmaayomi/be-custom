@@ -210,6 +210,20 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentPhase {
+  DP
+  PROGRESS_1
+  PROGRESS_2
+  FINAL
+}
+
+enum PaymentStatus {
+  WAITING_FOR_PAYMENT
+  PAID
+  FAILED
+  EXPIRED
+}
+
 model CustomOrderItem {
   id                  String            @id @default(cuid())
   customOrderId       String
