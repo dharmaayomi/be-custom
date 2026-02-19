@@ -3,9 +3,17 @@ import { ProductController } from "./product.controller.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { RoleMiddleware } from "../../middlewares/role.middleware.js";
-import { CreateProductDTO } from "./dto/createProduct.dto.js";
+import {
+  CreateComponentDTO,
+  CreateMaterialDTO,
+  CreateProductDTO,
+} from "./dto/createProduct.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
-import { EditProductDTO } from "./dto/editProduct.dto.js";
+import {
+  EditComponentDTO,
+  EditMaterialDTO,
+  EditProductDTO,
+} from "./dto/editProduct.dto.js";
 
 export class ProductRouter {
   private router = Router();
@@ -57,6 +65,46 @@ export class ProductRouter {
       this.jwtMiddleware.verifyToken(),
       this.roleMiddleware.verifyRole(["ADMIN"]),
       this.productController.deleteProduct,
+    );
+    this.router.post(
+      "/component",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateBody(CreateComponentDTO),
+      this.productController.createComponent,
+    );
+    this.router.post(
+      "/material",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateBody(CreateMaterialDTO),
+      this.productController.createMaterial,
+    );
+    this.router.patch(
+      "/component/:id/edit",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateBody(EditComponentDTO),
+      this.productController.editComponent,
+    );
+    this.router.delete(
+      "/component/:id",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.productController.deleteComponent,
+    );
+    this.router.patch(
+      "/material/:id/edit",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateBody(EditMaterialDTO),
+      this.productController.editMaterial,
+    );
+    this.router.delete(
+      "/material/:id",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.productController.deleteMaterial,
     );
   };
 

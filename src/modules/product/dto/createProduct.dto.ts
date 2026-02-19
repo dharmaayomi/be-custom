@@ -1,12 +1,17 @@
 import {
   ArrayMinSize,
   IsArray,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
 } from "class-validator";
+import {
+  ComponentCategory,
+  MaterialCategory,
+} from "../../../../generated/prisma/client.js";
 
 export class CreateProductDTO {
   @IsString()
@@ -50,4 +55,64 @@ export class CreateProductDTO {
   @ArrayMinSize(1)
   @IsUrl({}, { each: true })
   images!: string[];
+}
+
+export class CreateComponentDTO {
+  @IsString()
+  @IsNotEmpty()
+  componentName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl()
+  componentUrl!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  componentDesc!: string;
+
+  @IsEnum(ComponentCategory)
+  @IsNotEmpty()
+  componentCategory!: ComponentCategory;
+
+  @IsNumber()
+  @IsNotEmpty()
+  price!: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  weight!: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUrl({}, { each: true })
+  componentImageUrls!: string[];
+}
+
+export class CreateMaterialDTO {
+  @IsString()
+  @IsNotEmpty()
+  materialName!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl()
+  materialUrl!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  materialDesc!: string;
+
+  @IsEnum(MaterialCategory)
+  @IsOptional()
+  materialCategory?: MaterialCategory;
+
+  @IsNumber()
+  @IsNotEmpty()
+  price!: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUrl({}, { each: true })
+  materialImageUrls!: string[];
 }

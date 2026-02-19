@@ -5,8 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url       = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL")
 }
 
 model Sample {
@@ -105,15 +103,17 @@ model ProductBase {
 }
 
 model ProductComponent {
-  id                    String                 @id @default(cuid())
-  componentName         String
-  componentUrl          String
-  category              ComponentCategory
-  componentDesc         String
-  price                 Float
-  weight                Int
-  componentImageUrls    String[]
-  isActive              Boolean
+  id                 String             @id @default(cuid())
+  componentName      String
+  componentUrl       String
+  componentCategory  ComponentCategory?
+  componentDesc      String
+  price              Float
+  weight             Int
+  componentImageUrls String[]
+  isActive           Boolean            @default(true)
+  deletedAt          DateTime?
+
   customOrderComponents CustomOrderComponent[]
 
   @@map("productComponents")
@@ -122,9 +122,11 @@ model ProductComponent {
 model ProductMaterials {
   id                String            @id @default(cuid())
   materialName      String
-  materialUrl       String
+  materialUrl       String // this is just image not glb
   materialDesc      String
-  meterialImageUrls String[]
+  materialImageUrls String[]
+  materialCategory  MaterialCategory?
+  price             Int?
   isActive          Boolean
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -142,6 +144,12 @@ enum ComponentCategory {
   RAIL
   ACCESSORY
   HARDWARE
+}
+
+enum MaterialCategory {
+  FLOOR
+  WALL
+  FURNITURE
 }
 
 model UserDesign {

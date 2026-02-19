@@ -261,17 +261,25 @@ export class DesignService {
   };
 
   deleteDesign = async (authUserId: number, designCode: string) => {
-    await this.prisma.userDesign.update({
+    const deleted = await this.prisma.userDesign.updateMany({
       where: {
-        userId_designCode: {
-          userId: authUserId,
-          designCode,
+        userId: authUserId,
+        designCode,
+        deletedAt: null,
+        user: {
+          accountStatus: "ACTIVE",
+          deletedAt: null,
         },
       },
       data: {
         deletedAt: new Date(),
       },
     });
+
+    if (deleted.count === 0) {
+      throw new ApiError("We couldn't find your design code", 404);
+    }
+
     return { message: "Design deleted successfully" };
   };
 }

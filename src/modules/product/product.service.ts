@@ -2,8 +2,16 @@ import { Prisma, PrismaClient } from "../../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
-import { CreateProductDTO } from "./dto/createProduct.dto.js";
-import { EditProductDTO } from "./dto/editProduct.dto.js";
+import {
+  CreateComponentDTO,
+  CreateMaterialDTO,
+  CreateProductDTO,
+} from "./dto/createProduct.dto.js";
+import {
+  EditComponentDTO,
+  EditMaterialDTO,
+  EditProductDTO,
+} from "./dto/editProduct.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 
 export class ProductService {
@@ -44,21 +52,7 @@ export class ProductService {
     return parsed;
   };
 
-  createProduct = async (authUserId: number, body: CreateProductDTO) => {
-    const admin = await this.prisma.user.findUnique({
-      where: { id: authUserId },
-      select: { role: true, deletedAt: true, accountStatus: true },
-    });
-
-    if (
-      !admin ||
-      admin.role !== "ADMIN" ||
-      admin.deletedAt ||
-      admin.accountStatus !== "ACTIVE"
-    ) {
-      throw new ApiError("You are not authorized to create a product", 403);
-    }
-
+  createProduct = async (_authUserId: number, body: CreateProductDTO) => {
     const {
       productName,
       sku,
@@ -246,24 +240,10 @@ export class ProductService {
   };
 
   editProduct = async (
-    authUserId: number,
+    _authUserId: number,
     productId: string,
     body: EditProductDTO,
   ) => {
-    const admin = await this.prisma.user.findUnique({
-      where: { id: authUserId },
-      select: { role: true, deletedAt: true, accountStatus: true },
-    });
-
-    if (
-      !admin ||
-      admin.role !== "ADMIN" ||
-      admin.deletedAt ||
-      admin.accountStatus !== "ACTIVE"
-    ) {
-      throw new ApiError("You are not authorized to create a product", 403);
-    }
-
     const product = await this.prisma.productBase.findUnique({
       where: { id: productId },
     });
@@ -315,6 +295,15 @@ export class ProductService {
 
       updateData.images = normalizedImages;
     }
+    if (hasField("isActive") && typeof body.isActive === "boolean") {
+      updateData.isActive = body.isActive;
+    }
+    if (
+      hasField("isCustomizable") &&
+      typeof body.isCustomizable === "boolean"
+    ) {
+      updateData.isCustomizable = body.isCustomizable;
+    }
 
     if (
       typeof updateData.productUrl === "string" &&
@@ -356,26 +345,11 @@ export class ProductService {
     });
   };
 
-  deleteProduct = async (authUserId: number, productId: string) => {
-    const [admin, product] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: authUserId },
-        select: { role: true, deletedAt: true, accountStatus: true },
-      }),
-      this.prisma.productBase.findUnique({
-        where: { id: productId },
-        select: { id: true, deletedAt: true },
-      }),
-    ]);
-
-    if (
-      !admin ||
-      admin.role !== "ADMIN" ||
-      admin.deletedAt ||
-      admin.accountStatus !== "ACTIVE"
-    ) {
-      throw new ApiError("You are not authorized to delete a product", 403);
-    }
+  deleteProduct = async (_authUserId: number, productId: string) => {
+    const product = await this.prisma.productBase.findUnique({
+      where: { id: productId },
+      select: { id: true, deletedAt: true },
+    });
 
     if (!product || product.deletedAt) {
       throw new ApiError("Product not found", 404);
@@ -383,6 +357,405 @@ export class ProductService {
 
     return await this.prisma.productBase.update({
       where: { id: productId },
+      data: { deletedAt: new Date() },
+      select: { id: true, deletedAt: true },
+    });
+  };
+
+  createComponent = async (_authUserId: number, body: CreateComponentDTO) => {
+    const {
+      componentName,
+      componentUrl,
+      componentDesc,
+      componentCategory,
+      price,
+      weight,
+      componentImageUrls,
+    } = body;
+
+    const normalizedComponentName = componentName.trim();
+    const normalizedComponentUrl = componentUrl.trim();
+    const normalizedComponentDesc = componentDesc.trim();
+    const normalizedWeight = this.parseOptionalInt(weight, "weight");
+
+    if (typeof normalizedWeight === "undefined") {
+      throw new ApiError("weight is required", 400);
+    }
+
+    const normalizedImageUrls = componentImageUrls
+      .map((image) => image.trim())
+      .filter(Boolean);
+
+    if (normalizedImageUrls.length === 0) {
+      throw new ApiError("componentImageUrls is required", 400);
+    }
+
+    const existingComponent = await this.prisma.productComponent.findFirst({
+      where: {
+        OR: [
+          { componentName: normalizedComponentName },
+          { componentUrl: normalizedComponentUrl },
+        ],
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (existingComponent) {
+      throw new ApiError("Component with same name or URL already exists", 409);
+    }
+
+    return await this.prisma.productComponent.create({
+      data: {
+        componentName: normalizedComponentName,
+        componentUrl: normalizedComponentUrl,
+        componentDesc: normalizedComponentDesc,
+        componentCategory,
+        price,
+        weight: normalizedWeight,
+        componentImageUrls: normalizedImageUrls,
+        isActive: true,
+      },
+    });
+  };
+
+  editComponent = async (
+    _authUserId: number,
+    componentId: string,
+    body: EditComponentDTO,
+  ) => {
+    const component = await this.prisma.productComponent.findUnique({
+      where: { id: componentId },
+    });
+
+    if (!component || component.deletedAt) {
+      throw new ApiError("Component not found", 404);
+    }
+
+    const hasField = (field: keyof EditComponentDTO) =>
+      Object.prototype.hasOwnProperty.call(body, field);
+
+    const updateData: Prisma.ProductComponentUpdateInput = {};
+
+    if (hasField("componentName") && typeof body.componentName === "string") {
+      updateData.componentName = body.componentName.trim();
+    }
+    if (hasField("componentUrl") && typeof body.componentUrl === "string") {
+      updateData.componentUrl = body.componentUrl.trim();
+    }
+    if (hasField("componentDesc") && typeof body.componentDesc === "string") {
+      updateData.componentDesc = body.componentDesc.trim();
+    }
+    if (
+      hasField("componentCategory") &&
+      typeof body.componentCategory !== "undefined"
+    ) {
+      updateData.componentCategory = body.componentCategory;
+    }
+    if (hasField("price") && typeof body.price !== "undefined") {
+      updateData.price = body.price;
+    }
+    if (hasField("weight") && typeof body.weight !== "undefined") {
+      const normalizedWeight = this.parseOptionalInt(body.weight, "weight");
+      if (typeof normalizedWeight === "undefined") {
+        throw new ApiError("weight is required", 400);
+      }
+      updateData.weight = normalizedWeight;
+    }
+    if (
+      hasField("componentImageUrls") &&
+      Array.isArray(body.componentImageUrls)
+    ) {
+      const normalizedImageUrls = body.componentImageUrls
+        .map((image) => image.trim())
+        .filter(Boolean);
+
+      if (normalizedImageUrls.length === 0) {
+        throw new ApiError("componentImageUrls is required", 400);
+      }
+
+      updateData.componentImageUrls = normalizedImageUrls;
+    }
+    if (hasField("isActive") && typeof body.isActive === "boolean") {
+      updateData.isActive = body.isActive;
+    }
+
+    if (
+      typeof updateData.componentName === "string" ||
+      typeof updateData.componentUrl === "string"
+    ) {
+      const existingComponent = await this.prisma.productComponent.findFirst({
+        where: {
+          deletedAt: null,
+          id: { not: componentId },
+          OR: [
+            ...(typeof updateData.componentName === "string"
+              ? [{ componentName: updateData.componentName }]
+              : []),
+            ...(typeof updateData.componentUrl === "string"
+              ? [{ componentUrl: updateData.componentUrl }]
+              : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingComponent) {
+        throw new ApiError(
+          "Component with same name or URL already exists",
+          409,
+        );
+      }
+    }
+
+    if (
+      typeof updateData.componentUrl === "string" &&
+      updateData.componentUrl !== component.componentUrl
+    ) {
+      try {
+        await this.cloudinaryService.remove(component.componentUrl, "raw");
+      } catch (removeError) {
+        console.error("Failed to remove old component file:", removeError);
+      }
+    }
+
+    if (Array.isArray(updateData.componentImageUrls)) {
+      const newImages = new Set(updateData.componentImageUrls);
+      const oldImagesToRemove = component.componentImageUrls.filter(
+        (imageUrl) => !newImages.has(imageUrl),
+      );
+
+      await Promise.all(
+        oldImagesToRemove.map(async (imageUrl) => {
+          try {
+            await this.cloudinaryService.remove(imageUrl, "image");
+          } catch (removeError) {
+            console.error("Failed to remove old component image:", removeError);
+          }
+        }),
+      );
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return component;
+    }
+
+    return await this.prisma.productComponent.update({
+      where: { id: componentId },
+      data: updateData,
+    });
+  };
+
+  deleteComponent = async (_authUserId: number, componentId: string) => {
+    const component = await this.prisma.productComponent.findUnique({
+      where: { id: componentId },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!component || component.deletedAt) {
+      throw new ApiError("Component not found", 404);
+    }
+
+    return await this.prisma.productComponent.update({
+      where: { id: componentId },
+      data: { deletedAt: new Date() },
+      select: { id: true, deletedAt: true },
+    });
+  };
+
+  createMaterial = async (_authUserId: number, body: CreateMaterialDTO) => {
+    const {
+      materialName,
+      materialUrl,
+      materialDesc,
+      materialCategory,
+      price,
+      materialImageUrls,
+    } = body;
+
+    const normalizedMaterialName = materialName.trim();
+    const normalizedMaterialUrl = materialUrl.trim();
+    const normalizedMaterialDesc = materialDesc.trim();
+    const normalizedPrice = this.parseOptionalInt(price, "price");
+
+    if (typeof normalizedPrice === "undefined") {
+      throw new ApiError("price is required", 400);
+    }
+
+    const normalizedImageUrls = materialImageUrls
+      .map((image) => image.trim())
+      .filter(Boolean);
+
+    if (normalizedImageUrls.length === 0) {
+      throw new ApiError("materialImageUrls is required", 400);
+    }
+
+    const existingMaterial = await this.prisma.productMaterials.findFirst({
+      where: {
+        OR: [
+          { materialName: normalizedMaterialName },
+          { materialUrl: normalizedMaterialUrl },
+        ],
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (existingMaterial) {
+      throw new ApiError("Material with same name or URL already exists", 409);
+    }
+
+    return await this.prisma.productMaterials.create({
+      data: {
+        materialName: normalizedMaterialName,
+        materialUrl: normalizedMaterialUrl,
+        materialDesc: normalizedMaterialDesc,
+        materialCategory,
+        price: normalizedPrice,
+        materialImageUrls: normalizedImageUrls,
+        isActive: true,
+      },
+    });
+  };
+
+  editMaterial = async (
+    _authUserId: number,
+    materialId: string,
+    body: EditMaterialDTO,
+  ) => {
+    const material = await this.prisma.productMaterials.findUnique({
+      where: { id: materialId },
+    });
+
+    if (!material || material.deletedAt) {
+      throw new ApiError("Material not found", 404);
+    }
+
+    const hasField = (field: keyof EditMaterialDTO) =>
+      Object.prototype.hasOwnProperty.call(body, field);
+
+    const updateData: Prisma.ProductMaterialsUpdateInput = {};
+
+    if (hasField("materialName") && typeof body.materialName === "string") {
+      updateData.materialName = body.materialName.trim();
+    }
+    if (hasField("materialUrl") && typeof body.materialUrl === "string") {
+      updateData.materialUrl = body.materialUrl.trim();
+    }
+    if (hasField("materialDesc") && typeof body.materialDesc === "string") {
+      updateData.materialDesc = body.materialDesc.trim();
+    }
+    if (
+      hasField("materialCategory") &&
+      typeof body.materialCategory !== "undefined"
+    ) {
+      updateData.materialCategory = body.materialCategory;
+    }
+    if (hasField("price") && typeof body.price !== "undefined") {
+      const normalizedPrice = this.parseOptionalInt(body.price, "price");
+      if (typeof normalizedPrice === "undefined") {
+        throw new ApiError("price is required", 400);
+      }
+      updateData.price = normalizedPrice;
+    }
+    if (
+      hasField("materialImageUrls") &&
+      Array.isArray(body.materialImageUrls)
+    ) {
+      const normalizedImageUrls = body.materialImageUrls
+        .map((image) => image.trim())
+        .filter(Boolean);
+
+      if (normalizedImageUrls.length === 0) {
+        throw new ApiError("materialImageUrls is required", 400);
+      }
+
+      updateData.materialImageUrls = normalizedImageUrls;
+    }
+    if (hasField("isActive") && typeof body.isActive === "boolean") {
+      updateData.isActive = body.isActive;
+    }
+
+    if (
+      typeof updateData.materialName === "string" ||
+      typeof updateData.materialUrl === "string"
+    ) {
+      const existingMaterial = await this.prisma.productMaterials.findFirst({
+        where: {
+          deletedAt: null,
+          id: { not: materialId },
+          OR: [
+            ...(typeof updateData.materialName === "string"
+              ? [{ materialName: updateData.materialName }]
+              : []),
+            ...(typeof updateData.materialUrl === "string"
+              ? [{ materialUrl: updateData.materialUrl }]
+              : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingMaterial) {
+        throw new ApiError(
+          "Material with same name or URL already exists",
+          409,
+        );
+      }
+    }
+
+    if (
+      typeof updateData.materialUrl === "string" &&
+      updateData.materialUrl !== material.materialUrl
+    ) {
+      try {
+        await this.cloudinaryService.remove(material.materialUrl, "image");
+      } catch (removeError) {
+        // Keep edit flow running even if cleanup fails.
+        console.error("Failed to remove old material file:", removeError);
+      }
+    }
+
+    if (Array.isArray(updateData.materialImageUrls)) {
+      const newImages = new Set(updateData.materialImageUrls);
+      const oldImagesToRemove = material.materialImageUrls.filter(
+        (imageUrl) => !newImages.has(imageUrl),
+      );
+
+      await Promise.all(
+        oldImagesToRemove.map(async (imageUrl) => {
+          try {
+            await this.cloudinaryService.remove(imageUrl, "image");
+          } catch (removeError) {
+            // Keep edit flow running even if cleanup fails.
+            console.error("Failed to remove old material image:", removeError);
+          }
+        }),
+      );
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return material;
+    }
+
+    return await this.prisma.productMaterials.update({
+      where: { id: materialId },
+      data: updateData,
+    });
+  };
+
+  deleteMaterial = async (_authUserId: number, materialId: string) => {
+    const material = await this.prisma.productMaterials.findUnique({
+      where: { id: materialId },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!material || material.deletedAt) {
+      throw new ApiError("Material not found", 404);
+    }
+
+    return await this.prisma.productMaterials.update({
+      where: { id: materialId },
       data: { deletedAt: new Date() },
       select: { id: true, deletedAt: true },
     });
