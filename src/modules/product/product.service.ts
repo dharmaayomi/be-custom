@@ -355,4 +355,36 @@ export class ProductService {
       data: updateData,
     });
   };
+
+  deleteProduct = async (authUserId: number, productId: string) => {
+    const [admin, product] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: authUserId },
+        select: { role: true, deletedAt: true, accountStatus: true },
+      }),
+      this.prisma.productBase.findUnique({
+        where: { id: productId },
+        select: { id: true, deletedAt: true },
+      }),
+    ]);
+
+    if (
+      !admin ||
+      admin.role !== "ADMIN" ||
+      admin.deletedAt ||
+      admin.accountStatus !== "ACTIVE"
+    ) {
+      throw new ApiError("You are not authorized to delete a product", 403);
+    }
+
+    if (!product || product.deletedAt) {
+      throw new ApiError("Product not found", 404);
+    }
+
+    return await this.prisma.productBase.update({
+      where: { id: productId },
+      data: { deletedAt: new Date() },
+      select: { id: true, deletedAt: true },
+    });
+  };
 }

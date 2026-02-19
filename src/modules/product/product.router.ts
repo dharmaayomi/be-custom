@@ -52,6 +52,12 @@ export class ProductRouter {
       this.validationMiddleware.validateBody(CreateProductDTO),
       this.productController.createProduct,
     );
+    this.router.delete(
+      "/:id",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.productController.deleteProduct,
+    );
   };
 
   getRouter = () => {
