@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
+import {
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUrl,
+} from "class-validator";
 
 export class SaveDesignDTO {
   @IsString()
@@ -13,6 +19,12 @@ export class SaveDesignDTO {
   configuration!: Record<string, any>;
 
   @IsString()
+  @IsUrl()
   @IsOptional()
   fileFinalUrl?: string;
+
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  previewUrl?: string;
 }

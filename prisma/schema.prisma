@@ -41,6 +41,7 @@ model User {
   updatedAt               DateTime       @updatedAt
   addresses               Address[]
   userDesigns             UserDesign[]
+  customOrders            CustomOrder[]
 
   @@map("users")
 }
@@ -54,9 +55,9 @@ enum AccountStatus {
 }
 
 model Address {
-  id            Int       @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   userId        Int
-  user          User      @relation(fields: [userId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
   label         String
   recipientName String
   phoneNumber   String
@@ -71,47 +72,84 @@ model Address {
   postalCode    Int
   isDefault     Boolean
   deletedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orders        CustomOrder[]
 
   @@index([userId, isDefault])
   @@map("addresses")
 }
 
-model Product {
-  id              Int       @id @default(autoincrement())
-  productName     String
-  SKU             String
-  product_url     String
-  productCategory String
-  description     String
-  isActive        Boolean
-  isCustomizable  Boolean
-  images          String[]
-  deletedAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+model ProductBase {
+  id               String            @id @default(cuid())
+  productName      String
+  sku              String
+  productUrl       String
+  description      String
+  basePrice        Int
+  width            Int?
+  height           Int?
+  depth            Int?
+  weight           Int?
+  images           String[]
+  isActive         Boolean           @default(true)
+  isCustomizable   Boolean           @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  customOrderItems CustomOrderItem[]
 
   @@map("products")
 }
 
-model ProductPart {
-  id                Int @id @default(autoincrement())
-  productMaterialId Int
+model ProductComponent {
+  id                 String             @id @default(cuid())
+  componentName      String
+  componentUrl       String
+  componentCategory  ComponentCategory?
+  componentDesc      String
+  price              Float
+  weight             Int
+  componentImageUrls String[]
+  isActive           Boolean            @default(true)
+  deletedAt          DateTime?
 
-  @@map("productParts")
+  customOrderComponents CustomOrderComponent[]
+
+  @@map("productComponents")
 }
 
 model ProductMaterials {
-  id                  Int       @id @default(autoincrement())
-  productMaterialName String
-  materialDesc        String
-  isActive            Boolean
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  deletedAt           DateTime?
+  id                String            @id @default(cuid())
+  materialName      String
+  materialUrl       String // this is just image not glb
+  materialDesc      String
+  materialImageUrls String[]
+  materialCategory  MaterialCategory?
+  price             Int?
+  isActive          Boolean
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  customOrderItems  CustomOrderItem[]
 
   @@map("productMaterials")
+}
+
+enum ComponentCategory {
+  SHELF
+  DRAWER
+  HANGER
+  DOOR
+  RAIL
+  ACCESSORY
+  HARDWARE
+}
+
+enum MaterialCategory {
+  FLOOR
+  WALL
+  FURNITURE
 }
 
 model UserDesign {
@@ -121,15 +159,97 @@ model UserDesign {
   designCode    String
   designName    String
   configuration Json
+  previewUrl    String?
   fileFinalUrl  String?
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime? @updatedAt
 
+  orders CustomOrder[]
+
   @@unique([userId, designName])
   @@unique([userId, designCode])
   @@index([userId, deletedAt])
   @@map("userDesigns")
+}
+
+model CustomOrder {
+  id                   String               @id @default(cuid())
+  userId               Int
+  user                 User                 @relation(fields: [userId], references: [id])
+  userDesignId         Int
+  userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
+  snapShotAddress      Json
+  status               OrderStatus          @default(PENDING_PAYMENT)
+  subtotalPrice        Float? // price of total item
+  deliveryType         DeliveryType         @default(DELIVERY)
+  deliveryDistancce    Float?
+  deliveryFee          Float?
+  trackNumber          String?
+  totalWeight          Float?
+  items                CustomOrderItem[]
+  grandTotalPrice      Float // price of total item plus delivery fee
+  deletedAt            DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  address              Address?             @relation(fields: [addressId], references: [id])
+  addressId            Int?
+  productionProgresses ProductionProgress[]
+  payments             Payment[]
+}
+
+enum DeliveryType {
+  DELIVERY
+  PICKUP
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSED
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentPhase {
+  DP
+  PROGRESS_1
+  PROGRESS_2
+  FINAL
+}
+
+enum PaymentStatus {
+  WAITING_FOR_PAYMENT
+  PAID
+  FAILED
+  EXPIRED
+}
+
+model CustomOrderItem {
+  id                  String            @id @default(cuid())
+  customOrderId       String
+  customOrder         CustomOrder       @relation(fields: [customOrderId], references: [id])
+  productBaseId       String
+  productBase         ProductBase       @relation(fields: [productBaseId], references: [id])
+  materialId          String?
+  material            ProductMaterials? @relation(fields: [materialId], references: [id])
+  lockedBasePrice     Float
+  lockedMaterialPrice Float
+  itemTotalPrice      Float
+
+  components CustomOrderComponent[]
+}
+
+model CustomOrderComponent {
+  id                 String            @id @default(cuid())
+  customOrderItemId  String
+  customOrderItem    CustomOrderItem   @relation(fields: [customOrderItemId], references: [id])
+  componentId        String
+  productComponent   ProductComponent? @relation(fields: [componentId], references: [id])
+  quantity           Int
+  lockedPricePerUnit Float
+  lockedSubTotal     Float
 }
 
 model ShareableDesign {
@@ -142,19 +262,34 @@ model ShareableDesign {
   updatedAt     DateTime? @updatedAt
 }
 
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String
+  order      CustomOrder   @relation(fields: [orderId], references: [id])
+  phase      PaymentPhase
+  amount     Float
+  status     PaymentStatus @default(WAITING_FOR_PAYMENT)
+  externalId String? // ID dari Midtrans/Xendit
+  paymentUrl String? // Link pembayaran
+  paidAt     DateTime?
+  expiresAt  DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model ProductionProgress {
+  id          String      @id @default(cuid())
+  orderId     String
+  order       CustomOrder @relation(fields: [orderId], references: [id])
+  percentage  Int
+  photoUrl    String
+  description String?
+  createdAt   DateTime    @default(now())
+}
+
 enum Role {
   USER
   ADMIN
-}
-
-enum ProductCategory {
-  FRAME
-  ADD_ON_UNITS
-  LAMP
-  HANGER
-  TRAY
-  DRAWER
-  LIGHTING_SHELVES
-  GLASSES
-  DOOR
 }

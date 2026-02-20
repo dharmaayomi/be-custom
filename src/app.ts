@@ -25,6 +25,9 @@ import { DesignRouter } from "./modules/design/design.router.js";
 import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
 import { RoleMiddleware } from "./middlewares/role.middleware.js";
 import { UploaderMiddleware } from "./middlewares/uploader.middleware.js";
+import { ProductService } from "./modules/product/product.service.js";
+import { ProductController } from "./modules/product/product.controller.js";
+import { ProductRouter } from "./modules/product/product.router.js";
 
 export class App {
   app: Express;
@@ -59,13 +62,21 @@ export class App {
     );
     const cloudinaryService = new CloudinaryService();
     const userService = new UserService(prismaClient);
-    const designService = new DesignService(prismaClient);
+    const designService = new DesignService(prismaClient, cloudinaryService);
+    const productService = new ProductService(prismaClient, cloudinaryService);
 
     // controllers
     const sampleController = new SampleController(sampleService);
     const authController = new AuthController(authService);
     const userController = new UserController(userService, cloudinaryService);
-    const designController = new DesignController(designService);
+    const designController = new DesignController(
+      designService,
+      cloudinaryService,
+    );
+    const productController = new ProductController(
+      productService,
+      cloudinaryService,
+    );
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
@@ -74,10 +85,7 @@ export class App {
     const uploaderMiddleware = new UploaderMiddleware();
 
     // routers
-    const sampleRouter = new SampleRouter(
-      sampleController,
-      validationMiddleware,
-    );
+
     const authRouter = new AuthRouter(
       authController,
       validationMiddleware,
@@ -94,12 +102,19 @@ export class App {
       validationMiddleware,
       jwtMiddleware,
     );
+    const productRouter = new ProductRouter(
+      productController,
+      validationMiddleware,
+      jwtMiddleware,
+      roleMiddleware,
+    );
 
     // routes
     // this.app.use("/samples", sampleRouter.getRouter());
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/user", userRouter.getRouter());
     this.app.use("/design", designRouter.getRouter());
+    this.app.use("/product", productRouter.getRouter());
   }
 
   private handleError() {
@@ -107,8 +122,18 @@ export class App {
   }
 
   public start() {
-    this.app.listen(PORT, () => {
+    this.app.listen(PORT, async () => {
       console.log(`Server running on port: ${PORT}`);
+      try {
+        // Memicu koneksi ke Supabase agar request pertama user tidak lambat
+        await prisma.$connect();
+        console.log("Database connection established and warmed up.");
+      } catch (error) {
+        console.error(
+          "Failed to connect to the database during startup:",
+          error,
+        );
+      }
     });
   }
 }

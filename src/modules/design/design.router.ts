@@ -3,6 +3,7 @@ import { DesignController } from "./design.controller.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { SaveDesignDTO } from "./dto/saveDesignDto.js";
+import { PaginationQueryParams } from "../pagination/dto/pagination.dto.js";
 
 export class DesignRouter {
   private router: Router;
@@ -25,6 +26,11 @@ export class DesignRouter {
       this.designController.getShareableDesign,
     );
     this.router.post(
+      "/preview-upload-signature",
+      this.jwtMiddleware.verifyToken(),
+      this.designController.getDesignPreviewUploadSignature,
+    );
+    this.router.post(
       "/save-design",
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(SaveDesignDTO),
@@ -38,6 +44,7 @@ export class DesignRouter {
     this.router.get(
       "/saved-designs",
       this.jwtMiddleware.verifyToken(),
+      this.validationMiddleware.validateQuery(PaginationQueryParams),
       this.designController.getSavedDesigns,
     );
     this.router.delete(

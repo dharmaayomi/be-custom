@@ -24,9 +24,38 @@ export class CloudinaryService {
   };
 
   private extractPublicIdFromUrl = (url: string): string => {
-    const urlParts = url.split("/");
-    const lastPart = urlParts[urlParts.length - 1];
-    return lastPart.split(".")[0];
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    const uploadIndex = pathParts.findIndex((part) => part === "upload");
+
+    if (uploadIndex === -1 || uploadIndex + 1 >= pathParts.length) {
+      throw new Error("Invalid Cloudinary URL");
+    }
+
+    // Example URL path:
+    // /<cloud_name>/image/upload/v123/custom_be/designs/20/file.jpg
+    const publicIdParts = pathParts.slice(uploadIndex + 1);
+    if (publicIdParts[0]?.startsWith("v")) {
+      publicIdParts.shift();
+    }
+
+    const last = publicIdParts[publicIdParts.length - 1];
+    publicIdParts[publicIdParts.length - 1] = last.replace(/\.[^.]+$/, "");
+
+    return publicIdParts.join("/");
+  };
+
+  private extractResourceTypeFromUrl = (url: string): "image" | "raw" => {
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    const uploadIndex = pathParts.findIndex((part) => part === "upload");
+
+    if (uploadIndex <= 0) {
+      return "image";
+    }
+
+    const resourceType = pathParts[uploadIndex - 1];
+    return resourceType === "raw" ? "raw" : "image";
   };
 
   public upload = (file: Express.Multer.File): Promise<UploadApiResponse> => {
@@ -49,10 +78,55 @@ export class CloudinaryService {
     });
   };
 
-  public remove = async (secureUrl: string): Promise<any> => {
+  public getDesignPreviewUploadSignature = (authUserId: number) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = `custom_be/designs/${authUserId}`;
+    const signature = cloudinary.utils.api_sign_request(
+      { folder, timestamp },
+      CLOUDINARY_API_SECRET as string,
+    );
+
+    return {
+      timestamp,
+      folder,
+      signature,
+      apiKey: CLOUDINARY_API_KEY,
+      cloudName: CLOUDINARY_CLOUD_NAME,
+    };
+  };
+
+  public getProductUploadSignature = (
+    authUserId: number,
+    resourceType: "image" | "raw",
+  ) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = `custom_be/products/${authUserId}/${resourceType}`;
+    const signature = cloudinary.utils.api_sign_request(
+      { folder, timestamp },
+      CLOUDINARY_API_SECRET as string,
+    );
+
+    return {
+      timestamp,
+      folder,
+      signature,
+      resourceType,
+      apiKey: CLOUDINARY_API_KEY,
+      cloudName: CLOUDINARY_CLOUD_NAME,
+    };
+  };
+
+  public remove = async (
+    secureUrl: string,
+    resourceType?: "image" | "raw",
+  ): Promise<any> => {
     try {
       const publicId = this.extractPublicIdFromUrl(secureUrl);
-      return await cloudinary.uploader.destroy(publicId);
+      const finalResourceType =
+        resourceType ?? this.extractResourceTypeFromUrl(secureUrl);
+      return await cloudinary.uploader.destroy(publicId, {
+        resource_type: finalResourceType,
+      });
     } catch (error) {
       console.error("Cloudinary Remove Error:", error);
       throw error;
