@@ -174,26 +174,28 @@ model UserDesign {
 }
 
 model CustomOrder {
-  id                String            @id @default(cuid())
-  userId            Int
-  user              User              @relation(fields: [userId], references: [id])
-  userDesignId      Int
-  userDesign        UserDesign?       @relation(fields: [userDesignId], references: [id])
-  snapShotAddress   Json
-  status            OrderStatus       @default(PENDING_PAYMENT)
-  subtotalPrice     Float? // price of total item
-  deliveryType      DeliveryType      @default(DELIVERY)
-  deliveryDistancce Float?
-  deliveryFee       Float?
-  trackNumber       String?
-  totalWeight       Float?
-  items             CustomOrderItem[]
-  grandTotalPrice   Float // price of total item plus delivery fee
-  deletedAt         DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  address           Address?          @relation(fields: [addressId], references: [id])
-  addressId         Int?
+  id                   String               @id @default(cuid())
+  userId               Int
+  user                 User                 @relation(fields: [userId], references: [id])
+  userDesignId         Int
+  userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
+  snapShotAddress      Json
+  status               OrderStatus          @default(PENDING_PAYMENT)
+  subtotalPrice        Float? // price of total item
+  deliveryType         DeliveryType         @default(DELIVERY)
+  deliveryDistancce    Float?
+  deliveryFee          Float?
+  trackNumber          String?
+  totalWeight          Float?
+  items                CustomOrderItem[]
+  grandTotalPrice      Float // price of total item plus delivery fee
+  deletedAt            DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  address              Address?             @relation(fields: [addressId], references: [id])
+  addressId            Int?
+  productionProgresses ProductionProgress[]
+  payments             Payment[]
 }
 
 enum DeliveryType {
@@ -258,6 +260,33 @@ model ShareableDesign {
   expiresAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime? @updatedAt
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String
+  order      CustomOrder   @relation(fields: [orderId], references: [id])
+  phase      PaymentPhase
+  amount     Float
+  status     PaymentStatus @default(WAITING_FOR_PAYMENT)
+  externalId String? // ID dari Midtrans/Xendit
+  paymentUrl String? // Link pembayaran
+  paidAt     DateTime?
+  expiresAt  DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model ProductionProgress {
+  id          String      @id @default(cuid())
+  orderId     String
+  order       CustomOrder @relation(fields: [orderId], references: [id])
+  percentage  Int
+  photoUrl    String
+  description String?
+  createdAt   DateTime    @default(now())
 }
 
 enum Role {

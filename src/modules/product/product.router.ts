@@ -8,6 +8,8 @@ import {
   CreateMaterialDTO,
   CreateProductDTO,
 } from "./dto/createProduct.dto.js";
+import { GetComponentsQueryDTO } from "./dto/getComponentsQuery.dto.js";
+import { GetMaterialsQueryDTO } from "./dto/getMaterialsQuery.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 import {
   EditComponentDTO,
@@ -33,6 +35,18 @@ export class ProductRouter {
       this.validationMiddleware.validateQuery(GetProductsQueryDTO),
       this.productController.getProducts,
     );
+    this.router.get(
+      "/material",
+      this.validationMiddleware.validateQuery(GetMaterialsQueryDTO),
+      this.productController.getMaterials,
+    );
+    this.router.get("/material/:id", this.productController.getMaterialById);
+    this.router.get(
+      "/component",
+      this.validationMiddleware.validateQuery(GetComponentsQueryDTO),
+      this.productController.getComponents,
+    );
+    this.router.get("/component/:id", this.productController.getComponentById);
     this.router.get("/:id", this.productController.getProductById);
     this.router.patch(
       "/:id",

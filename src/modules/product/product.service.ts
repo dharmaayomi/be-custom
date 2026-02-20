@@ -12,6 +12,8 @@ import {
   EditMaterialDTO,
   EditProductDTO,
 } from "./dto/editProduct.dto.js";
+import { GetComponentsQueryDTO } from "./dto/getComponentsQuery.dto.js";
+import { GetMaterialsQueryDTO } from "./dto/getMaterialsQuery.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 
 export class ProductService {
@@ -419,6 +421,113 @@ export class ProductService {
     });
   };
 
+  getComponents = async (query: GetComponentsQueryDTO) => {
+    const {
+      page,
+      perPage,
+      sortBy,
+      orderBy,
+      isActive,
+      componentCategory,
+      category,
+      name,
+      search,
+    } = query;
+
+    const skip = (page - 1) * perPage;
+    const allowedSortBy = new Set([
+      "id",
+      "componentName",
+      "componentUrl",
+      "componentCategory",
+      "componentDesc",
+      "price",
+      "weight",
+      "isActive",
+      "deletedAt",
+    ]);
+
+    if (!allowedSortBy.has(sortBy)) {
+      throw new ApiError("sortBy is not valid for components", 400);
+    }
+
+    const where: Prisma.ProductComponentWhereInput = {
+      deletedAt: null,
+    };
+
+    if (typeof isActive === "boolean") {
+      where.isActive = isActive;
+    }
+
+    const normalizedCategory = componentCategory ?? category;
+    if (normalizedCategory) {
+      where.componentCategory = normalizedCategory;
+    }
+
+    if (name?.trim()) {
+      where.componentName = {
+        contains: name.trim(),
+        mode: "insensitive",
+      };
+    }
+
+    if (search?.trim()) {
+      const normalizedSearch = search.trim();
+      where.OR = [
+        { componentName: { contains: normalizedSearch, mode: "insensitive" } },
+        { componentDesc: { contains: normalizedSearch, mode: "insensitive" } },
+      ];
+    }
+
+    const findManyArgs: Prisma.ProductComponentFindManyArgs = {
+      where,
+      skip,
+      take: perPage,
+      orderBy: {
+        [sortBy]: orderBy,
+      } as Prisma.ProductComponentOrderByWithRelationInput,
+      select: {
+        id: true,
+        componentName: true,
+        componentUrl: true,
+        componentCategory: true,
+        componentDesc: true,
+        price: true,
+        weight: true,
+        componentImageUrls: true,
+        isActive: true,
+      },
+    };
+
+    const [count, data] = await Promise.all([
+      this.prisma.productComponent.count({ where }),
+      this.prisma.productComponent.findMany(findManyArgs),
+    ]);
+
+    const meta = this.paginationService.generateMeta({
+      page,
+      perPage,
+      count,
+    });
+
+    return {
+      data,
+      meta,
+    };
+  };
+
+  getComponentById = async (componentId: string) => {
+    const component = await this.prisma.productComponent.findUnique({
+      where: { id: componentId },
+    });
+
+    if (!component || component.deletedAt) {
+      throw new ApiError("Component not found", 404);
+    }
+
+    return component;
+  };
+
   editComponent = async (
     _authUserId: number,
     componentId: string,
@@ -616,6 +725,110 @@ export class ProductService {
         isActive: true,
       },
     });
+  };
+
+  getMaterials = async (query: GetMaterialsQueryDTO) => {
+    const {
+      page,
+      perPage,
+      sortBy,
+      orderBy,
+      isActive,
+      materialCategory,
+      name,
+      dateFrom,
+      dateTo,
+      search,
+    } = query;
+
+    const skip = (page - 1) * perPage;
+
+    const where: Prisma.ProductMaterialsWhereInput = {
+      deletedAt: null,
+    };
+
+    if (typeof isActive === "boolean") {
+      where.isActive = isActive;
+    }
+
+    if (materialCategory) {
+      where.materialCategory = materialCategory;
+    }
+
+    if (name?.trim()) {
+      where.materialName = {
+        contains: name.trim(),
+        mode: "insensitive",
+      };
+    }
+
+    if (dateFrom || dateTo) {
+      if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+        throw new ApiError("dateFrom cannot be greater than dateTo", 400);
+      }
+
+      where.createdAt = {
+        ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+        ...(dateTo ? { lte: new Date(dateTo) } : {}),
+      };
+    }
+
+    if (search?.trim()) {
+      const normalizedSearch = search.trim();
+      where.OR = [
+        { materialName: { contains: normalizedSearch, mode: "insensitive" } },
+        { materialDesc: { contains: normalizedSearch, mode: "insensitive" } },
+      ];
+    }
+
+    const findManyArgs: Prisma.ProductMaterialsFindManyArgs = {
+      where,
+      skip,
+      take: perPage,
+      orderBy: {
+        [sortBy]: orderBy,
+      } as Prisma.ProductMaterialsOrderByWithRelationInput,
+      select: {
+        id: true,
+        materialName: true,
+        materialUrl: true,
+        materialDesc: true,
+        materialImageUrls: true,
+        materialCategory: true,
+        price: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    };
+
+    const [count, data] = await Promise.all([
+      this.prisma.productMaterials.count({ where }),
+      this.prisma.productMaterials.findMany(findManyArgs),
+    ]);
+
+    const meta = this.paginationService.generateMeta({
+      page,
+      perPage,
+      count,
+    });
+
+    return {
+      data,
+      meta,
+    };
+  };
+
+  getMaterialById = async (materialId: string) => {
+    const material = await this.prisma.productMaterials.findUnique({
+      where: { id: materialId },
+    });
+
+    if (!material || material.deletedAt) {
+      throw new ApiError("Material not found", 404);
+    }
+
+    return material;
   };
 
   editMaterial = async (

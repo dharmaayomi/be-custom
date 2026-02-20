@@ -11,6 +11,8 @@ import {
   EditMaterialDTO,
   EditProductDTO,
 } from "./dto/editProduct.dto.js";
+import { GetComponentsQueryDTO } from "./dto/getComponentsQuery.dto.js";
+import { GetMaterialsQueryDTO } from "./dto/getMaterialsQuery.dto.js";
 import { GetProductsQueryDTO } from "./dto/getProductsQuery.dto.js";
 import { ProductService } from "./product.service.js";
 
@@ -129,6 +131,30 @@ export class ProductController {
     }
   };
 
+  getComponents = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const queryDto = plainToInstance(GetComponentsQueryDTO, req.query);
+      const result = await this.productService.getComponents(queryDto);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getComponentById = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const componentId = req.params.id;
+      const result = await this.productService.getComponentById(componentId);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   editComponent = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUserId = Number(res.locals.user.id);
@@ -169,6 +195,27 @@ export class ProductController {
       next(error);
     }
   };
+
+  getMaterials = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const queryDto = plainToInstance(GetMaterialsQueryDTO, req.query);
+      const result = await this.productService.getMaterials(queryDto);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getMaterialById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const materialId = req.params.id;
+      const result = await this.productService.getMaterialById(materialId);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   editMaterial = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUserId = Number(res.locals.user.id);
