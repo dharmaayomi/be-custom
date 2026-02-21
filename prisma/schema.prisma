@@ -108,6 +108,7 @@ model ProductComponent {
   componentUrl       String
   componentCategory  ComponentCategory?
   componentDesc      String
+  componentSku       String?
   price              Float
   weight             Int
   componentImageUrls String[]
@@ -122,18 +123,18 @@ model ProductComponent {
 }
 
 model ProductMaterials {
-  id                String            @id @default(cuid())
-  materialName      String
-  materialUrl       String // this is just image not glb
-  materialDesc      String
-  materialImageUrls String[]
-  materialCategory  MaterialCategory?
-  price             Int?
-  isActive          Boolean
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  deletedAt         DateTime?
-  customOrderItems  CustomOrderItem[]
+  id               String            @id @default(cuid())
+  materialName     String
+  materialUrl      String // this is just image not glb
+  materialDesc     String
+  materialSku      String?
+  materialCategory MaterialCategory?
+  price            Int?
+  isActive         Boolean
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  customOrderItems CustomOrderItem[]
 
   @@map("productMaterials")
 }

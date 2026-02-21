@@ -367,6 +367,7 @@ export class ProductService {
   createComponent = async (_authUserId: number, body: CreateComponentDTO) => {
     const {
       componentName,
+      componentSku,
       componentUrl,
       componentDesc,
       componentCategory,
@@ -376,6 +377,7 @@ export class ProductService {
     } = body;
 
     const normalizedComponentName = componentName.trim();
+    const normalizedComponentSku = componentSku.trim();
     const normalizedComponentUrl = componentUrl.trim();
     const normalizedComponentDesc = componentDesc.trim();
     const normalizedWeight = this.parseOptionalInt(weight, "weight");
@@ -396,6 +398,7 @@ export class ProductService {
       where: {
         OR: [
           { componentName: normalizedComponentName },
+          { componentSku: normalizedComponentSku },
           { componentUrl: normalizedComponentUrl },
         ],
         deletedAt: null,
@@ -404,12 +407,16 @@ export class ProductService {
     });
 
     if (existingComponent) {
-      throw new ApiError("Component with same name or URL already exists", 409);
+      throw new ApiError(
+        "Component with same name, SKU, or URL already exists",
+        409,
+      );
     }
 
     return await this.prisma.productComponent.create({
       data: {
         componentName: normalizedComponentName,
+        componentSku: normalizedComponentSku,
         componentUrl: normalizedComponentUrl,
         componentDesc: normalizedComponentDesc,
         componentCategory,
@@ -675,14 +682,15 @@ export class ProductService {
   createMaterial = async (_authUserId: number, body: CreateMaterialDTO) => {
     const {
       materialName,
+      materialSku,
       materialUrl,
       materialDesc,
       materialCategory,
       price,
-      materialImageUrls,
     } = body;
 
     const normalizedMaterialName = materialName.trim();
+    const normalizedMaterialSku = materialSku.trim();
     const normalizedMaterialUrl = materialUrl.trim();
     const normalizedMaterialDesc = materialDesc.trim();
     const normalizedPrice = this.parseOptionalInt(price, "price");
@@ -691,18 +699,11 @@ export class ProductService {
       throw new ApiError("price is required", 400);
     }
 
-    const normalizedImageUrls = materialImageUrls
-      .map((image) => image.trim())
-      .filter(Boolean);
-
-    if (normalizedImageUrls.length === 0) {
-      throw new ApiError("materialImageUrls is required", 400);
-    }
-
     const existingMaterial = await this.prisma.productMaterials.findFirst({
       where: {
         OR: [
           { materialName: normalizedMaterialName },
+          { materialSku: normalizedMaterialSku },
           { materialUrl: normalizedMaterialUrl },
         ],
         deletedAt: null,
@@ -711,17 +712,20 @@ export class ProductService {
     });
 
     if (existingMaterial) {
-      throw new ApiError("Material with same name or URL already exists", 409);
+      throw new ApiError(
+        "Material with same name, SKU, or URL already exists",
+        409,
+      );
     }
 
     return await this.prisma.productMaterials.create({
       data: {
         materialName: normalizedMaterialName,
+        materialSku: normalizedMaterialSku,
         materialUrl: normalizedMaterialUrl,
         materialDesc: normalizedMaterialDesc,
         materialCategory,
         price: normalizedPrice,
-        materialImageUrls: normalizedImageUrls,
         isActive: true,
       },
     });
@@ -793,7 +797,6 @@ export class ProductService {
         materialName: true,
         materialUrl: true,
         materialDesc: true,
-        materialImageUrls: true,
         materialCategory: true,
         price: true,
         isActive: true,
@@ -871,20 +874,6 @@ export class ProductService {
       }
       updateData.price = normalizedPrice;
     }
-    if (
-      hasField("materialImageUrls") &&
-      Array.isArray(body.materialImageUrls)
-    ) {
-      const normalizedImageUrls = body.materialImageUrls
-        .map((image) => image.trim())
-        .filter(Boolean);
-
-      if (normalizedImageUrls.length === 0) {
-        throw new ApiError("materialImageUrls is required", 400);
-      }
-
-      updateData.materialImageUrls = normalizedImageUrls;
-    }
     if (hasField("isActive") && typeof body.isActive === "boolean") {
       updateData.isActive = body.isActive;
     }
@@ -927,24 +916,6 @@ export class ProductService {
         // Keep edit flow running even if cleanup fails.
         console.error("Failed to remove old material file:", removeError);
       }
-    }
-
-    if (Array.isArray(updateData.materialImageUrls)) {
-      const newImages = new Set(updateData.materialImageUrls);
-      const oldImagesToRemove = material.materialImageUrls.filter(
-        (imageUrl) => !newImages.has(imageUrl),
-      );
-
-      await Promise.all(
-        oldImagesToRemove.map(async (imageUrl) => {
-          try {
-            await this.cloudinaryService.remove(imageUrl, "image");
-          } catch (removeError) {
-            // Keep edit flow running even if cleanup fails.
-            console.error("Failed to remove old material image:", removeError);
-          }
-        }),
-      );
     }
 
     if (Object.keys(updateData).length === 0) {

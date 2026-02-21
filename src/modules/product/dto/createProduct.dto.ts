@@ -64,6 +64,10 @@ export class CreateComponentDTO {
 
   @IsString()
   @IsNotEmpty()
+  componentSku!: string;
+
+  @IsString()
+  @IsNotEmpty()
   @IsUrl()
   componentUrl!: string;
 
@@ -96,6 +100,10 @@ export class CreateMaterialDTO {
 
   @IsString()
   @IsNotEmpty()
+  materialSku!: string;
+
+  @IsString()
+  @IsNotEmpty()
   @IsUrl()
   materialUrl!: string;
 
@@ -110,9 +118,4 @@ export class CreateMaterialDTO {
   @IsNumber()
   @IsNotEmpty()
   price!: number;
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @IsUrl({}, { each: true })
-  materialImageUrls!: string[];
 }
