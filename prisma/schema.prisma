@@ -113,6 +113,8 @@ model ProductComponent {
   componentImageUrls String[]
   isActive           Boolean            @default(true)
   deletedAt          DateTime?
+  createdAt          DateTime?          @default(now())
+  updatedAt          DateTime?          @updatedAt
 
   customOrderComponents CustomOrderComponent[]
 
@@ -237,6 +239,9 @@ model CustomOrderItem {
   lockedBasePrice     Float
   lockedMaterialPrice Float
   itemTotalPrice      Float
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime?         @updatedAt
+  deletedAt           DateTime?
 
   components CustomOrderComponent[]
 }
@@ -250,6 +255,9 @@ model CustomOrderComponent {
   quantity           Int
   lockedPricePerUnit Float
   lockedSubTotal     Float
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime?         @updatedAt
+  deletedAt          DateTime?
 }
 
 model ShareableDesign {
@@ -272,7 +280,7 @@ model Payment {
   externalId String? // ID dari Midtrans/Xendit
   paymentUrl String? // Link pembayaran
   paidAt     DateTime?
-  expiresAt  DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu
+  expiresAt  DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu. pke redis aj ga si men?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -287,6 +295,7 @@ model ProductionProgress {
   photoUrl    String
   description String?
   createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 enum Role {
