@@ -73,6 +73,10 @@ export class EditComponentDTO {
 
   @IsString()
   @IsOptional()
+  componentSku?: string;
+
+  @IsString()
+  @IsOptional()
   @IsUrl()
   componentUrl?: string;
 
@@ -107,6 +111,10 @@ export class EditMaterialDTO {
   @IsString()
   @IsOptional()
   materialName?: string;
+
+  @IsString()
+  @IsOptional()
+  materialSku?: string;
 
   @IsString()
   @IsOptional()
