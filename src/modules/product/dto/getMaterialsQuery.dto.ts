@@ -1,5 +1,7 @@
 import { Transform } from "class-transformer";
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -26,8 +28,21 @@ export class GetMaterialsQueryDTO extends PaginationQueryParams {
   isActive?: boolean;
 
   @IsOptional()
-  @IsEnum(MaterialCategory)
-  materialCategory?: MaterialCategory;
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return value;
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsEnum(MaterialCategory, { each: true })
+  materialCategories?: MaterialCategory[];
 
   @IsOptional()
   @IsString()

@@ -111,9 +111,10 @@ export class CreateMaterialDTO {
   @IsNotEmpty()
   materialDesc!: string;
 
-  @IsEnum(MaterialCategory)
-  @IsOptional()
-  materialCategory?: MaterialCategory;
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsEnum(MaterialCategory, { each: true })
+  materialCategories!: MaterialCategory[];
 
   @IsNumber()
   @IsNotEmpty()

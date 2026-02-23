@@ -38,7 +38,27 @@ export class EditAddressDTO {
 
   @IsString()
   @IsOptional()
+  subdistrict?: string;
+
+  @IsString()
+  @IsOptional()
   province?: string;
+
+  @IsString()
+  @IsOptional()
+  provinceCode?: string;
+
+  @IsString()
+  @IsOptional()
+  cityCode?: string;
+
+  @IsString()
+  @IsOptional()
+  districtCode?: string;
+
+  @IsString()
+  @IsOptional()
+  subdistrictCode?: string;
 
   @IsString()
   @IsOptional()
@@ -58,7 +78,8 @@ export class EditAddressDTO {
   @IsNumber({}, { message: "Longitude must be a valid number" })
   readonly longitude?: number;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  postalCode?: number;
+  @IsNotEmpty()
+  postalCode?: string;
 }

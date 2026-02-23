@@ -685,7 +685,7 @@ export class ProductService {
       materialSku,
       materialUrl,
       materialDesc,
-      materialCategory,
+      materialCategories,
       price,
     } = body;
 
@@ -724,7 +724,7 @@ export class ProductService {
         materialSku: normalizedMaterialSku,
         materialUrl: normalizedMaterialUrl,
         materialDesc: normalizedMaterialDesc,
-        materialCategory,
+        materialCategories,
         price: normalizedPrice,
         isActive: true,
       },
@@ -738,7 +738,7 @@ export class ProductService {
       sortBy,
       orderBy,
       isActive,
-      materialCategory,
+      materialCategories,
       name,
       dateFrom,
       dateTo,
@@ -755,8 +755,10 @@ export class ProductService {
       where.isActive = isActive;
     }
 
-    if (materialCategory) {
-      where.materialCategory = materialCategory;
+    if (materialCategories?.length) {
+      where.materialCategories = {
+        hasSome: materialCategories,
+      };
     }
 
     if (name?.trim()) {
@@ -797,7 +799,7 @@ export class ProductService {
         materialName: true,
         materialUrl: true,
         materialDesc: true,
-        materialCategory: true,
+        materialCategories: true,
         price: true,
         isActive: true,
         createdAt: true,
@@ -862,10 +864,10 @@ export class ProductService {
       updateData.materialDesc = body.materialDesc.trim();
     }
     if (
-      hasField("materialCategory") &&
-      typeof body.materialCategory !== "undefined"
+      hasField("materialCategories") &&
+      typeof body.materialCategories !== "undefined"
     ) {
-      updateData.materialCategory = body.materialCategory;
+      updateData.materialCategories = body.materialCategories;
     }
     if (hasField("price") && typeof body.price !== "undefined") {
       const normalizedPrice = this.parseOptionalInt(body.price, "price");

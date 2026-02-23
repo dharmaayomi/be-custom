@@ -55,26 +55,31 @@ enum AccountStatus {
 }
 
 model Address {
-  id            Int           @id @default(autoincrement())
-  userId        Int
-  user          User          @relation(fields: [userId], references: [id])
-  label         String
-  recipientName String
-  phoneNumber   String
-  line1         String
-  line2         String?
-  city          String
-  district      String
-  province      String
-  country       String
-  latitude      Float?
-  longitude     Float?
-  postalCode    Int
-  isDefault     Boolean
-  deletedAt     DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  orders        CustomOrder[]
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id])
+  label           String
+  recipientName   String
+  phoneNumber     String
+  line1           String
+  line2           String?
+  city            String
+  district        String
+  subdistrict     String?
+  province        String
+  provinceCode    String?
+  cityCode        String?
+  districtCode    String?
+  subdistrictCode String?
+  country         String
+  latitude        Float?
+  longitude       Float?
+  postalCode      String
+  isDefault       Boolean
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  orders          CustomOrder[]
 
   @@index([userId, isDefault])
   @@map("addresses")
@@ -87,10 +92,10 @@ model ProductBase {
   productUrl       String
   description      String
   basePrice        Int
-  width            Int?
-  height           Int?
-  depth            Int?
-  weight           Int?
+  width            Int
+  height           Int
+  depth            Int
+  weight           Int
   images           String[]
   isActive         Boolean           @default(true)
   isCustomizable   Boolean           @default(true)
@@ -123,18 +128,19 @@ model ProductComponent {
 }
 
 model ProductMaterials {
-  id               String            @id @default(cuid())
-  materialName     String
-  materialUrl      String // this is just image not glb
-  materialDesc     String
-  materialSku      String?
-  materialCategory MaterialCategory?
-  price            Int?
-  isActive         Boolean
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  deletedAt        DateTime?
-  customOrderItems CustomOrderItem[]
+  id                 String             @id @default(cuid())
+  materialName       String
+  materialUrl        String // this is just image not glb
+  materialDesc       String
+  materialSku        String?
+  materialCategories MaterialCategory[]
+  materialCategory   MaterialCategory?
+  price              Int?
+  isActive           Boolean
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+  customOrderItems   CustomOrderItem[]
 
   @@map("productMaterials")
 }
