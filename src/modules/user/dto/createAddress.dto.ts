@@ -1,11 +1,5 @@
 import { Transform } from "class-transformer";
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from "class-validator";
+import { IsBoolean, IsNotEmpty, IsNumber, IsString } from "class-validator";
 
 export class CreateAddressDTO {
   @IsString()
@@ -25,8 +19,8 @@ export class CreateAddressDTO {
   line1!: string;
 
   @IsString()
-  @IsOptional()
-  line2?: string;
+  @IsNotEmpty()
+  line2!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -38,7 +32,27 @@ export class CreateAddressDTO {
 
   @IsString()
   @IsNotEmpty()
+  subdistrict!: string;
+
+  @IsString()
+  @IsNotEmpty()
   province!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  provinceCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cityCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  districtCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  subdistrictCode!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -58,7 +72,7 @@ export class CreateAddressDTO {
   @IsNumber({}, { message: "Longitude must be a valid number" })
   readonly longitude!: number;
 
-  @IsNumber()
+  @IsString()
   @IsNotEmpty()
-  postalCode!: number;
+  postalCode!: string;
 }

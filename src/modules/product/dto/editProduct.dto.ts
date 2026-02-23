@@ -125,9 +125,11 @@ export class EditMaterialDTO {
   @IsOptional()
   materialDesc?: string;
 
-  @IsEnum(MaterialCategory)
+  @IsArray()
   @IsOptional()
-  materialCategory?: MaterialCategory;
+  @ArrayMinSize(1)
+  @IsEnum(MaterialCategory, { each: true })
+  materialCategories?: MaterialCategory[];
 
   @IsNumber()
   @IsOptional()
