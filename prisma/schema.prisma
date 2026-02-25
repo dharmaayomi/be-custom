@@ -134,7 +134,6 @@ model ProductMaterials {
   materialDesc       String
   materialSku        String?
   materialCategories MaterialCategory[]
-  materialCategory   MaterialCategory?
   price              Int?
   isActive           Boolean
   createdAt          DateTime           @default(now())
@@ -231,8 +230,11 @@ enum PaymentPhase {
 enum PaymentStatus {
   WAITING_FOR_PAYMENT
   PAID
-  FAILED
+  CHALLENGE
+  DENIED
   EXPIRED
+  CANCELLED
+  FAILED
 }
 
 model CustomOrderItem {
@@ -278,18 +280,20 @@ model ShareableDesign {
 }
 
 model Payment {
-  id         String        @id @default(cuid())
-  orderId    String
-  order      CustomOrder   @relation(fields: [orderId], references: [id])
-  phase      PaymentPhase
-  amount     Float
-  status     PaymentStatus @default(WAITING_FOR_PAYMENT)
-  externalId String? // ID dari Midtrans/Xendit
-  paymentUrl String? // Link pembayaran
-  paidAt     DateTime?
-  expiresAt  DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu. pke redis aj ga si men?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id          String        @id @default(cuid())
+  orderId     String
+  order       CustomOrder   @relation(fields: [orderId], references: [id])
+  phase       PaymentPhase
+  amount      Float
+  status      PaymentStatus @default(WAITING_FOR_PAYMENT)
+  externalId  String? // ID dari Midtrans/Xendit
+  paymentUrl  String? // Link pembayaran
+  paymentType String?
+
+  paidAt    DateTime?
+  expiresAt DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu. pke redis aj ga si men?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("payments")
 }
@@ -308,4 +312,18 @@ model ProductionProgress {
 enum Role {
   USER
   ADMIN
+}
+
+model Notification {
+  id           Int      @id @default(autoincrement())
+  title        String
+  message      String
+  role         Role
+  readByUserId Int[]    @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Provider {
+  GOOGLE
 }

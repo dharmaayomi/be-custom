@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -73,6 +74,7 @@ export class EditComponentDTO {
 
   @IsString()
   @IsOptional()
+  @IsNotEmpty()
   componentSku?: string;
 
   @IsString()
@@ -114,6 +116,7 @@ export class EditMaterialDTO {
 
   @IsString()
   @IsOptional()
+  @IsNotEmpty()
   materialSku?: string;
 
   @IsString()
