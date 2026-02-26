@@ -191,7 +191,7 @@ model CustomOrder {
   status               OrderStatus          @default(PENDING_PAYMENT)
   subtotalPrice        Float? // price of total item
   deliveryType         DeliveryType         @default(DELIVERY)
-  deliveryDistancce    Float?
+  deliveryDistance     Float?
   deliveryFee          Float?
   trackNumber          String?
   totalWeight          Float?
@@ -326,4 +326,5 @@ model Notification {
 
 enum Provider {
   GOOGLE
+  CREDENTIAL
 }
