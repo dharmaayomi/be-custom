@@ -36,20 +36,20 @@ export class CreateProductDTO {
   basePrice!: number;
 
   @IsNumber()
-  @IsOptional()
-  weight?: number;
+  @IsNotEmpty()
+  weight!: number;
 
   @IsNumber()
-  @IsOptional()
-  height?: number;
+  @IsNotEmpty()
+  height!: number;
 
   @IsNumber()
-  @IsOptional()
-  width?: number;
+  @IsNotEmpty()
+  width!: number;
 
   @IsNumber()
-  @IsOptional()
-  depth?: number;
+  @IsNotEmpty()
+  depth!: number;
 
   @IsArray()
   @ArrayMinSize(1)
@@ -99,8 +99,9 @@ export class CreateMaterialDTO {
   materialName!: string;
 
   @IsString()
+  @IsOptional()
   @IsNotEmpty()
-  materialSku!: string;
+  materialSku?: string;
 
   @IsString()
   @IsNotEmpty()

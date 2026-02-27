@@ -77,6 +77,19 @@ export class ProductService {
     const normalizedDepth = this.parseOptionalInt(depth, "depth");
     const normalizedWeight = this.parseOptionalInt(weight, "weight");
 
+    if (typeof normalizedWidth === "undefined") {
+      throw new ApiError("width is required", 400);
+    }
+    if (typeof normalizedHeight === "undefined") {
+      throw new ApiError("height is required", 400);
+    }
+    if (typeof normalizedDepth === "undefined") {
+      throw new ApiError("depth is required", 400);
+    }
+    if (typeof normalizedWeight === "undefined") {
+      throw new ApiError("weight is required", 400);
+    }
+
     const normalizedImages = images
       .map((image) => image.trim())
       .filter(Boolean);
@@ -482,6 +495,7 @@ export class ProductService {
       const normalizedSearch = search.trim();
       where.OR = [
         { componentName: { contains: normalizedSearch, mode: "insensitive" } },
+        { componentSku: { contains: normalizedSearch, mode: "insensitive" } },
         { componentDesc: { contains: normalizedSearch, mode: "insensitive" } },
       ];
     }
@@ -496,6 +510,7 @@ export class ProductService {
       select: {
         id: true,
         componentName: true,
+        componentSku: true,
         componentUrl: true,
         componentCategory: true,
         componentDesc: true,
@@ -556,6 +571,9 @@ export class ProductService {
     if (hasField("componentName") && typeof body.componentName === "string") {
       updateData.componentName = body.componentName.trim();
     }
+    if (hasField("componentSku") && typeof body.componentSku === "string") {
+      updateData.componentSku = body.componentSku.trim();
+    }
     if (hasField("componentUrl") && typeof body.componentUrl === "string") {
       updateData.componentUrl = body.componentUrl.trim();
     }
@@ -598,6 +616,7 @@ export class ProductService {
 
     if (
       typeof updateData.componentName === "string" ||
+      typeof updateData.componentSku === "string" ||
       typeof updateData.componentUrl === "string"
     ) {
       const existingComponent = await this.prisma.productComponent.findFirst({
@@ -607,6 +626,9 @@ export class ProductService {
           OR: [
             ...(typeof updateData.componentName === "string"
               ? [{ componentName: updateData.componentName }]
+              : []),
+            ...(typeof updateData.componentSku === "string"
+              ? [{ componentSku: updateData.componentSku }]
               : []),
             ...(typeof updateData.componentUrl === "string"
               ? [{ componentUrl: updateData.componentUrl }]
@@ -618,7 +640,7 @@ export class ProductService {
 
       if (existingComponent) {
         throw new ApiError(
-          "Component with same name or URL already exists",
+          "Component with same name, SKU, or URL already exists",
           409,
         );
       }
@@ -690,7 +712,7 @@ export class ProductService {
     } = body;
 
     const normalizedMaterialName = materialName.trim();
-    const normalizedMaterialSku = materialSku.trim();
+    const normalizedMaterialSku = materialSku?.trim() || undefined;
     const normalizedMaterialUrl = materialUrl.trim();
     const normalizedMaterialDesc = materialDesc.trim();
     const normalizedPrice = this.parseOptionalInt(price, "price");
@@ -703,7 +725,9 @@ export class ProductService {
       where: {
         OR: [
           { materialName: normalizedMaterialName },
-          { materialSku: normalizedMaterialSku },
+          ...(normalizedMaterialSku
+            ? [{ materialSku: normalizedMaterialSku }]
+            : []),
           { materialUrl: normalizedMaterialUrl },
         ],
         deletedAt: null,
@@ -783,6 +807,7 @@ export class ProductService {
       const normalizedSearch = search.trim();
       where.OR = [
         { materialName: { contains: normalizedSearch, mode: "insensitive" } },
+        { materialSku: { contains: normalizedSearch, mode: "insensitive" } },
         { materialDesc: { contains: normalizedSearch, mode: "insensitive" } },
       ];
     }
@@ -797,6 +822,7 @@ export class ProductService {
       select: {
         id: true,
         materialName: true,
+        materialSku: true,
         materialUrl: true,
         materialDesc: true,
         materialCategories: true,
@@ -857,6 +883,9 @@ export class ProductService {
     if (hasField("materialName") && typeof body.materialName === "string") {
       updateData.materialName = body.materialName.trim();
     }
+    if (hasField("materialSku") && typeof body.materialSku === "string") {
+      updateData.materialSku = body.materialSku.trim();
+    }
     if (hasField("materialUrl") && typeof body.materialUrl === "string") {
       updateData.materialUrl = body.materialUrl.trim();
     }
@@ -882,6 +911,7 @@ export class ProductService {
 
     if (
       typeof updateData.materialName === "string" ||
+      typeof updateData.materialSku === "string" ||
       typeof updateData.materialUrl === "string"
     ) {
       const existingMaterial = await this.prisma.productMaterials.findFirst({
@@ -891,6 +921,9 @@ export class ProductService {
           OR: [
             ...(typeof updateData.materialName === "string"
               ? [{ materialName: updateData.materialName }]
+              : []),
+            ...(typeof updateData.materialSku === "string"
+              ? [{ materialSku: updateData.materialSku }]
               : []),
             ...(typeof updateData.materialUrl === "string"
               ? [{ materialUrl: updateData.materialUrl }]
@@ -902,7 +935,7 @@ export class ProductService {
 
       if (existingMaterial) {
         throw new ApiError(
-          "Material with same name or URL already exists",
+          "Material with same name, SKU, or URL already exists",
           409,
         );
       }

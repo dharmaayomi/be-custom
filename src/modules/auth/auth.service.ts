@@ -58,7 +58,17 @@ export class AuthService {
       JWT_SECRET,
     );
 
-    const { password: pw, ...userWithoutPassword } = existingUser;
+    const {
+      password: pw,
+      phoneNumber,
+      resetPasswordToken,
+      resetPasswordTokenUsed,
+      emailVerificationToken,
+      emailVerificationUsed,
+      deleteAccountToken,
+      deletedAccountTokenUsed,
+      ...userWithoutPassword
+    } = existingUser;
 
     return { ...userWithoutPassword, accessToken };
   };
