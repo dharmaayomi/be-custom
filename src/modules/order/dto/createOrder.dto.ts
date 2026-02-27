@@ -17,9 +17,9 @@ export class CreateOrderDTO {
   @IsEnum(DeliveryType)
   deliveryType!: DeliveryType;
 
-  @IsNotEmpty({ message: "Shipping address is required" })
+  @IsOptional()
   @IsNumber()
-  addressId!: number;
+  addressId?: number;
 
   @IsOptional()
   @IsString()

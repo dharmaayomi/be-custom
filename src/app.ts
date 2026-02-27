@@ -146,7 +146,6 @@ export class App {
     this.app.listen(PORT, async () => {
       console.log(`Server running on port: ${PORT}`);
       try {
-        // Memicu koneksi ke Supabase agar request pertama user tidak lambat
         await prisma.$connect();
         console.log("Database connection established and warmed up.");
       } catch (error) {
