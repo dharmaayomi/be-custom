@@ -28,6 +28,12 @@ import { UploaderMiddleware } from "./middlewares/uploader.middleware.js";
 import { ProductService } from "./modules/product/product.service.js";
 import { ProductController } from "./modules/product/product.controller.js";
 import { ProductRouter } from "./modules/product/product.router.js";
+import { OrderService } from "./modules/order/order.service.js";
+import { OrderController } from "./modules/order/order.controller.js";
+import { OrderRouter } from "./modules/order/order.router.js";
+import { PaymentService } from "./modules/payment/payment.service.js";
+import { PaymentController } from "./modules/payment/payment.controller.js";
+import { PaymentRouter } from "./modules/payment/payment.router.js";
 
 export class App {
   app: Express;
@@ -50,7 +56,6 @@ export class App {
     const prismaClient = prisma;
 
     // services
-    const sampleService = new SampleService(prismaClient);
     const passwordService = new PasswordService();
     const tokenService = new TokenService();
     const mailService = new MailService();
@@ -64,9 +69,10 @@ export class App {
     const userService = new UserService(prismaClient);
     const designService = new DesignService(prismaClient, cloudinaryService);
     const productService = new ProductService(prismaClient, cloudinaryService);
+    const orderService = new OrderService(prismaClient);
+    const paymentService = new PaymentService(prismaClient);
 
     // controllers
-    const sampleController = new SampleController(sampleService);
     const authController = new AuthController(authService);
     const userController = new UserController(userService, cloudinaryService);
     const designController = new DesignController(
@@ -77,6 +83,8 @@ export class App {
       productService,
       cloudinaryService,
     );
+    const orderController = new OrderController(orderService);
+    const paymentController = new PaymentController(paymentService);
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
@@ -108,6 +116,17 @@ export class App {
       jwtMiddleware,
       roleMiddleware,
     );
+    const orderRouter = new OrderRouter(
+      orderController,
+      validationMiddleware,
+      jwtMiddleware,
+      roleMiddleware,
+    );
+    const paymentRouter = new PaymentRouter(
+      paymentController,
+      validationMiddleware,
+      jwtMiddleware,
+    );
 
     // routes
     // this.app.use("/samples", sampleRouter.getRouter());
@@ -115,6 +134,8 @@ export class App {
     this.app.use("/user", userRouter.getRouter());
     this.app.use("/design", designRouter.getRouter());
     this.app.use("/product", productRouter.getRouter());
+    this.app.use("/order", orderRouter.getRouter());
+    this.app.use("/payment", paymentRouter.getRouter());
   }
 
   private handleError() {
@@ -125,7 +146,6 @@ export class App {
     this.app.listen(PORT, async () => {
       console.log(`Server running on port: ${PORT}`);
       try {
-        // Memicu koneksi ke Supabase agar request pertama user tidak lambat
         await prisma.$connect();
         console.log("Database connection established and warmed up.");
       } catch (error) {

@@ -55,31 +55,32 @@ enum AccountStatus {
 }
 
 model Address {
-  id              Int           @id @default(autoincrement())
-  userId          Int
-  user            User          @relation(fields: [userId], references: [id])
-  label           String
-  recipientName   String
-  phoneNumber     String
-  line1           String
-  line2           String?
-  city            String
-  district        String
-  subdistrict     String?
-  province        String
-  provinceCode    String?
-  cityCode        String?
-  districtCode    String?
-  subdistrictCode String?
-  country         String
-  latitude        Float?
-  longitude       Float?
-  postalCode      String
-  isDefault       Boolean
-  deletedAt       DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  orders          CustomOrder[]
+  id                   Int           @id @default(autoincrement())
+  userId               Int
+  user                 User          @relation(fields: [userId], references: [id])
+  label                String
+  recipientName        String
+  phoneNumber          String
+  line1                String
+  line2                String?
+  city                 String
+  district             String
+  subdistrict          String?
+  komerceSubdistrictId String?
+  province             String
+  provinceCode         String?
+  cityCode             String?
+  districtCode         String?
+  subdistrictCode      String?
+  country              String
+  latitude             Float?
+  longitude            Float?
+  postalCode           String
+  isDefault            Boolean
+  deletedAt            DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  orders               CustomOrder[]
 
   @@index([userId, isDefault])
   @@map("addresses")
@@ -134,7 +135,6 @@ model ProductMaterials {
   materialDesc       String
   materialSku        String?
   materialCategories MaterialCategory[]
-  materialCategory   MaterialCategory?
   price              Int?
   isActive           Boolean
   createdAt          DateTime           @default(now())
@@ -186,17 +186,19 @@ model CustomOrder {
   id                   String               @id @default(cuid())
   userId               Int
   user                 User                 @relation(fields: [userId], references: [id])
-  userDesignId         Int
+  userDesignId         Int?
   userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
+  designSnapShot       Json?
   snapShotAddress      Json
   status               OrderStatus          @default(PENDING_PAYMENT)
-  subtotalPrice        Float? // price of total item
+  subtotalPrice        Float // price of total item
   deliveryType         DeliveryType         @default(DELIVERY)
-  deliveryDistancce    Float?
+  deliveryDistance     Float?
   deliveryFee          Float?
   trackNumber          String?
-  totalWeight          Float?
+  totalWeight          Float
   items                CustomOrderItem[]
+  notes                String?
   grandTotalPrice      Float // price of total item plus delivery fee
   deletedAt            DateTime?
   createdAt            DateTime             @default(now())
@@ -231,8 +233,11 @@ enum PaymentPhase {
 enum PaymentStatus {
   WAITING_FOR_PAYMENT
   PAID
-  FAILED
+  CHALLENGE
+  DENIED
   EXPIRED
+  CANCELLED
+  FAILED
 }
 
 model CustomOrderItem {
@@ -278,18 +283,20 @@ model ShareableDesign {
 }
 
 model Payment {
-  id         String        @id @default(cuid())
-  orderId    String
-  order      CustomOrder   @relation(fields: [orderId], references: [id])
-  phase      PaymentPhase
-  amount     Float
-  status     PaymentStatus @default(WAITING_FOR_PAYMENT)
-  externalId String? // ID dari Midtrans/Xendit
-  paymentUrl String? // Link pembayaran
-  paidAt     DateTime?
-  expiresAt  DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu. pke redis aj ga si men?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id          String        @id @default(cuid())
+  orderId     String
+  order       CustomOrder   @relation(fields: [orderId], references: [id])
+  phase       PaymentPhase
+  amount      Float
+  status      PaymentStatus @default(WAITING_FOR_PAYMENT)
+  externalId  String? // ID dari Midtrans/Xendit
+  paymentUrl  String? // Link pembayaran
+  paymentType String?
+
+  paidAt    DateTime?
+  expiresAt DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu. pke redis aj ga si men?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("payments")
 }
@@ -308,4 +315,19 @@ model ProductionProgress {
 enum Role {
   USER
   ADMIN
+}
+
+model Notification {
+  id           Int      @id @default(autoincrement())
+  title        String
+  message      String
+  role         Role
+  readByUserId Int[]    @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Provider {
+  GOOGLE
+  CREDENTIAL
 }

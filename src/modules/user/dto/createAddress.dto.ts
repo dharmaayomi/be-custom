@@ -1,5 +1,11 @@
 import { Transform } from "class-transformer";
-import { IsBoolean, IsNotEmpty, IsNumber, IsString } from "class-validator";
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from "class-validator";
 
 export class CreateAddressDTO {
   @IsString()
@@ -19,8 +25,8 @@ export class CreateAddressDTO {
   line1!: string;
 
   @IsString()
-  @IsNotEmpty()
-  line2!: string;
+  @IsOptional()
+  line2?: string;
 
   @IsString()
   @IsNotEmpty()

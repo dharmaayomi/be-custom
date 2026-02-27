@@ -1,4 +1,5 @@
 {
+  "prisma.pinToPrisma6": false,
   "workbench.colorCustomizations": {
     "activityBar.background": "#4D4D0F",
     "titleBar.activeBackground": "#6C6C15",
@@ -12,5 +13,5 @@
     "statusBar.noFolderBackground": "#4D4D0F",
     "statusBar.noFolderForeground": "#FBFBEA"
   },
-  "prisma.pinToPrisma6": false
+  "windowColors.baseColor": "#6b6b15"
 }
