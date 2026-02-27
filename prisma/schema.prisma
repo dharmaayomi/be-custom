@@ -55,31 +55,32 @@ enum AccountStatus {
 }
 
 model Address {
-  id              Int           @id @default(autoincrement())
-  userId          Int
-  user            User          @relation(fields: [userId], references: [id])
-  label           String
-  recipientName   String
-  phoneNumber     String
-  line1           String
-  line2           String?
-  city            String
-  district        String
-  subdistrict     String?
-  province        String
-  provinceCode    String?
-  cityCode        String?
-  districtCode    String?
-  subdistrictCode String?
-  country         String
-  latitude        Float?
-  longitude       Float?
-  postalCode      String
-  isDefault       Boolean
-  deletedAt       DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  orders          CustomOrder[]
+  id                   Int           @id @default(autoincrement())
+  userId               Int
+  user                 User          @relation(fields: [userId], references: [id])
+  label                String
+  recipientName        String
+  phoneNumber          String
+  line1                String
+  line2                String?
+  city                 String
+  district             String
+  subdistrict          String?
+  komerceSubdistrictId String?
+  province             String
+  provinceCode         String?
+  cityCode             String?
+  districtCode         String?
+  subdistrictCode      String?
+  country              String
+  latitude             Float?
+  longitude            Float?
+  postalCode           String
+  isDefault            Boolean
+  deletedAt            DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  orders               CustomOrder[]
 
   @@index([userId, isDefault])
   @@map("addresses")
@@ -185,17 +186,19 @@ model CustomOrder {
   id                   String               @id @default(cuid())
   userId               Int
   user                 User                 @relation(fields: [userId], references: [id])
-  userDesignId         Int
+  userDesignId         Int?
   userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
+  designSnapShot       Json?
   snapShotAddress      Json
   status               OrderStatus          @default(PENDING_PAYMENT)
-  subtotalPrice        Float? // price of total item
+  subtotalPrice        Float // price of total item
   deliveryType         DeliveryType         @default(DELIVERY)
   deliveryDistance     Float?
   deliveryFee          Float?
   trackNumber          String?
-  totalWeight          Float?
+  totalWeight          Float
   items                CustomOrderItem[]
+  notes                String?
   grandTotalPrice      Float // price of total item plus delivery fee
   deletedAt            DateTime?
   createdAt            DateTime             @default(now())

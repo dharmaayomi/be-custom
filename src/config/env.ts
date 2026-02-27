@@ -19,6 +19,15 @@ export const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY as string;
 export const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY as string;
 export const MIDTRANS_IS_PRODUCTION =
   process.env.MIDTRANS_IS_PRODUCTION === "true";
-export const RAJAONGKIR_API_KEY = process.env.RAJAONGKIR_API_KEY as string;
+export const RAJAONGKIR_API_COST_KEY = process.env
+  .RAJAONGKIR_API_COST_KEY as string;
 export const RAJAONGKIR_API_DELIVERY_KEY = process.env
   .RAJAONGKIR_API_DELIVERY_KEY as string;
+export const RAJAONGKIR_ORIGIN_SUBDISTRICT_ID =
+  process.env.RAJAONGKIR_ORIGIN_SUBDISTRICT_ID;
+export const STORE_LATITUDE = process.env.STORE_LATITUDE
+  ? Number(process.env.STORE_LATITUDE)
+  : undefined;
+export const STORE_LONGITUDE = process.env.STORE_LONGITUDE
+  ? Number(process.env.STORE_LONGITUDE)
+  : undefined;
