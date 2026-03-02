@@ -184,11 +184,13 @@ model UserDesign {
 
 model CustomOrder {
   id                   String               @id @default(cuid())
+  orderNumber          String?              @unique
   userId               Int
   user                 User                 @relation(fields: [userId], references: [id])
   userDesignId         Int?
   userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
   designSnapShot       Json?
+  previewUrl           String?
   snapShotAddress      Json
   status               OrderStatus          @default(PENDING_PAYMENT)
   subtotalPrice        Float // price of total item

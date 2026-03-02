@@ -11,6 +11,7 @@ import {
   STORE_LATITUDE,
   STORE_LONGITUDE,
 } from "../../config/env.js";
+import { customAlphabet } from "nanoid";
 
 interface DesignModel {
   id: string;
@@ -217,7 +218,7 @@ export class OrderService {
 
   private calculateDeliveryFee = async (
     destinationSubdistrictId: string,
-    weightGrams: number,
+    weightKg: number,
   ) => {
     if (!RAJAONGKIR_API_COST_KEY) {
       throw new ApiError("RajaOngkir cost key is not configured", 500);
@@ -225,7 +226,7 @@ export class OrderService {
 
     const originSubdistrictId =
       RAJAONGKIR_ORIGIN_SUBDISTRICT_ID ?? this.DEFAULT_ORIGIN_SUBDISTRICT_ID;
-    const billableWeightGrams = Math.max(1, Math.ceil(weightGrams));
+    const billableWeightGrams = Math.max(1, Math.ceil(weightKg * 1000));
 
     const response = await fetch(this.RAJAONGKIR_DOMESTIC_COST_URL, {
       method: "POST",
@@ -295,6 +296,7 @@ export class OrderService {
 
   createCustomOrder = async (authUserId: number, body: CreateOrderDTO) => {
     const { designCode, deliveryType, addressId, notes, configuration } = body;
+    const requestedPreviewUrl = body.previewUrl?.trim() || null;
 
     const user = await this.prisma.user.findUnique({
       where: { id: authUserId },
@@ -310,6 +312,7 @@ export class OrderService {
     >;
     let resolvedConfiguration: Prisma.InputJsonValue;
     let designSnapshot: Prisma.InputJsonValue;
+    let resolvedPreviewUrl: string | null = requestedPreviewUrl;
 
     if (designCode?.trim()) {
       design = await this.prisma.userDesign.findFirst({
@@ -326,6 +329,7 @@ export class OrderService {
 
       resolvedConfiguration = design.configuration as Prisma.InputJsonValue;
       designSnapshot = design.configuration as Prisma.InputJsonValue;
+      resolvedPreviewUrl = design.previewUrl ?? requestedPreviewUrl;
     } else {
       if (!configuration || typeof configuration !== "object") {
         throw new ApiError(
@@ -338,20 +342,23 @@ export class OrderService {
       designSnapshot = configuration as Prisma.InputJsonValue;
     }
 
-    const address = await this.prisma.address.findFirst({
-      where: {
-        id: addressId,
-        userId: authUserId,
-      },
-    });
+    const address =
+      deliveryType === DeliveryType.DELIVERY
+        ? await this.prisma.address.findFirst({
+            where: {
+              id: addressId,
+              userId: authUserId,
+            },
+          })
+        : null;
 
-    if (!address) {
+    if (deliveryType === DeliveryType.DELIVERY && !address) {
       throw new ApiError("Shipping address not found", 404);
     }
 
     if (
       deliveryType === DeliveryType.DELIVERY &&
-      !address.komerceSubdistrictId
+      (!address || !address.komerceSubdistrictId)
     ) {
       throw new ApiError(
         "Address komerceSubdistrictId is required for delivery calculation. Please re-save this address.",
@@ -359,26 +366,32 @@ export class OrderService {
       );
     }
 
-    const snapShotAddress = {
-      label: address.label,
-      recipientName: address.recipientName,
-      phoneNumber: address.phoneNumber,
-      line1: address.line1,
-      line2: address.line2,
-      city: address.city,
-      district: address.district,
-      subdistrict: address.subdistrict,
-      province: address.province,
-      provinceCode: address.provinceCode,
-      cityCode: address.cityCode,
-      districtCode: address.districtCode,
-      subdistrictCode: address.subdistrictCode,
-      komerceSubdistrictId: address.komerceSubdistrictId,
-      country: address.country,
-      latitude: address.latitude,
-      longitude: address.longitude,
-      postalCode: address.postalCode,
-    };
+    const snapShotAddress =
+      deliveryType === DeliveryType.DELIVERY && address
+        ? {
+            label: address.label,
+            recipientName: address.recipientName,
+            phoneNumber: address.phoneNumber,
+            line1: address.line1,
+            line2: address.line2,
+            city: address.city,
+            district: address.district,
+            subdistrict: address.subdistrict,
+            province: address.province,
+            provinceCode: address.provinceCode,
+            cityCode: address.cityCode,
+            districtCode: address.districtCode,
+            subdistrictCode: address.subdistrictCode,
+            komerceSubdistrictId: address.komerceSubdistrictId,
+            country: address.country,
+            latitude: address.latitude,
+            longitude: address.longitude,
+            postalCode: address.postalCode,
+          }
+        : {
+            type: "PICKUP",
+            note: "Pickup at store",
+          };
 
     const { lockedItems, subtotalPrice, totalWeight } =
       await this.calculatePricingFromDesign(resolvedConfiguration);
@@ -387,51 +400,113 @@ export class OrderService {
       deliveryType === DeliveryType.PICKUP
         ? 0
         : await this.calculateDeliveryFee(
-            address.komerceSubdistrictId as string,
+            address!.komerceSubdistrictId as string,
             totalWeight,
           );
     const deliveryDistance =
       deliveryType === DeliveryType.PICKUP
         ? null
-        : this.calculateDeliveryDistanceKm(address.latitude, address.longitude);
+        : this.calculateDeliveryDistanceKm(
+            address!.latitude,
+            address!.longitude,
+          );
     const grandTotalPrice = subtotalPrice + deliveryFee;
 
-    return await this.prisma.customOrder.create({
-      data: {
-        userId: authUserId,
-        userDesignId: design?.id,
-        designSnapShot: designSnapshot,
-        addressId: address.id,
-        snapShotAddress,
-        deliveryType: deliveryType,
-        subtotalPrice,
-        totalWeight: Math.ceil(totalWeight),
-        deliveryDistance,
-        deliveryFee,
-        status: "PENDING_PAYMENT",
-        notes: notes?.trim(),
-        grandTotalPrice,
-        items: {
-          create: lockedItems.map((item) => ({
-            productBaseId: item.productBaseId,
-            materialId: item.materialId,
-            lockedBasePrice: item.lockedBasePrice,
-            lockedMaterialPrice: item.lockedMaterialPrice,
-            itemTotalPrice: item.itemTotalPrice,
-            components: {
-              create: item.components.map((comp) => ({
-                componentId: comp.componentId,
-                quantity: comp.quantity,
-                lockedPricePerUnit: comp.lockedPricePerUnit,
-                lockedSubTotal: comp.lockedSubTotal,
+    const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const nanoid = customAlphabet(alphabet, 7);
+    const generateOrderCode = () => {
+      return `CSTF-${nanoid()}`;
+    };
+    const maxOrderNumberRetry = 3;
+    for (let attempt = 1; attempt <= maxOrderNumberRetry; attempt += 1) {
+      try {
+        return await this.prisma.customOrder.create({
+          data: {
+            userId: authUserId,
+            userDesignId: design?.id,
+            designSnapShot: designSnapshot,
+            previewUrl: resolvedPreviewUrl,
+            addressId: address?.id,
+            snapShotAddress,
+            orderNumber: generateOrderCode(),
+            deliveryType: deliveryType,
+            subtotalPrice,
+            totalWeight,
+            deliveryDistance,
+            deliveryFee,
+            status: "PENDING_PAYMENT",
+            notes: notes?.trim(),
+            grandTotalPrice,
+            items: {
+              create: lockedItems.map((item) => ({
+                productBaseId: item.productBaseId,
+                materialId: item.materialId,
+                lockedBasePrice: item.lockedBasePrice,
+                lockedMaterialPrice: item.lockedMaterialPrice,
+                itemTotalPrice: item.itemTotalPrice,
+                components: {
+                  create: item.components.map((comp) => ({
+                    componentId: comp.componentId,
+                    quantity: comp.quantity,
+                    lockedPricePerUnit: comp.lockedPricePerUnit,
+                    lockedSubTotal: comp.lockedSubTotal,
+                  })),
+                },
               })),
             },
-          })),
-        },
-      },
-      include: {
-        userDesign: true,
-      },
+          },
+          include: {
+            userDesign: true,
+          },
+        });
+      } catch (error) {
+        const isOrderNumberConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          Array.isArray(error.meta?.target) &&
+          error.meta.target.includes("orderNumber");
+
+        if (isOrderNumberConflict && attempt < maxOrderNumberRetry) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw new ApiError("Failed to generate unique order number", 500);
+  };
+
+  getOrder = async (authUserId: number, orderId: string) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      include: { addresses: { where: { deletedAt: null } } },
     });
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+    const order = await this.prisma.customOrder.findUnique({
+      where: { id: orderId },
+      include: { items: { include: { components: true } } },
+    });
+    if (!order) {
+      throw new ApiError("We couldn't find your order", 404);
+    }
+    return order;
+  };
+
+  getOrders = async (authUserId: number) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      include: { addresses: { where: { deletedAt: null } } },
+    });
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+    const orders = await this.prisma.customOrder.findMany({
+      where: { userId: authUserId },
+      include: { items: { include: { components: true } } },
+    });
+    return orders;
   };
 }

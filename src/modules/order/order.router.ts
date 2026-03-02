@@ -17,11 +17,21 @@ export class OrderRouter {
   }
 
   private initializedRoutes = () => {
+    this.router.get(
+      "/",
+      this.jwtMiddleware.verifyToken(),
+      this.orderController.getOrders,
+    );
     this.router.post(
       "/create-custom-order",
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(CreateOrderDTO),
       this.orderController.createCustomOrder,
+    );
+    this.router.get(
+      "/:orderId",
+      this.jwtMiddleware.verifyToken(),
+      this.orderController.getOrder,
     );
   };
 
