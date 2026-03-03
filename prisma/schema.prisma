@@ -189,6 +189,7 @@ model CustomOrder {
   user                 User                 @relation(fields: [userId], references: [id])
   userDesignId         Int?
   userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
+  currentPaymentPhase  PaymentPhase?        @default(DP)
   designSnapShot       Json?
   previewUrl           String?
   snapShotAddress      Json
@@ -201,6 +202,8 @@ model CustomOrder {
   totalWeight          Float
   items                CustomOrderItem[]
   notes                String?
+  totalAmountPaid      Float?
+  remainingAmount      Float?
   grandTotalPrice      Float // price of total item plus delivery fee
   deletedAt            DateTime?
   createdAt            DateTime             @default(now())
@@ -218,8 +221,9 @@ enum DeliveryType {
 
 enum OrderStatus {
   PENDING_PAYMENT
-  PAID
-  PROCESSED
+  IN_PRODUCTION
+  PRODUCTION_COMPLETED
+  READY_TO_SHIP
   SHIPPED
   COMPLETED
   CANCELLED

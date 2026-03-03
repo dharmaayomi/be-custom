@@ -2,6 +2,7 @@ import { Router } from "express";
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { CreateSnapPaymentDTO } from "./dto/createSnapPayment.dto.js";
+import { GetPaymentsQueryDTO } from "./dto/getPaymentsQuery.dto.js";
 import { PaymentController } from "./payment.controller.js";
 
 export class PaymentRouter {
@@ -26,6 +27,19 @@ export class PaymentRouter {
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(CreateSnapPaymentDTO),
       this.paymentController.createSnapTransaction,
+    );
+
+    this.router.get(
+      "/",
+      this.jwtMiddleware.verifyToken(),
+      this.validationMiddleware.validateQuery(GetPaymentsQueryDTO),
+      this.paymentController.getPayments,
+    );
+
+    this.router.get(
+      "/:paymentId",
+      this.jwtMiddleware.verifyToken(),
+      this.paymentController.getPayment,
     );
   };
 

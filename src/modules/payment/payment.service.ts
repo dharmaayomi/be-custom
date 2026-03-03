@@ -2,10 +2,14 @@ import {
   OrderStatus,
   PaymentPhase,
   PaymentStatus,
+  Prisma,
   PrismaClient,
 } from "../../../generated/prisma/client.js";
+import { BASE_URL_FE } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
 import midtransService from "../../utils/midtrans.js";
+import { PaginationService } from "../pagination/pagination.service.js";
+import { GetPaymentsQueryDTO } from "./dto/getPaymentsQuery.dto.js";
 
 type CreateSnapTransactionInput = {
   authUserId: number;
@@ -25,6 +29,7 @@ type MidtransWebhookInput = {
 
 export class PaymentService {
   private static readonly SNAP_EXPIRY_HOURS = 1;
+  private paginationService = new PaginationService();
 
   constructor(private prisma: PrismaClient) {}
 
@@ -234,6 +239,13 @@ export class PaymentService {
         orderId: payment.id,
         grossAmount,
         items: itemDetails,
+        callbacks: BASE_URL_FE
+          ? {
+              finish: `${BASE_URL_FE}/dashboard/billing?orderId=${order.id}`,
+              unfinish: `${BASE_URL_FE}/checkout?orderId=${order.id}`,
+              error: `${BASE_URL_FE}/checkout?orderId=${order.id}`,
+            }
+          : undefined,
         expiryHours: PaymentService.SNAP_EXPIRY_HOURS,
         customer: {
           firstName: order.user.firstName,
@@ -402,5 +414,93 @@ export class PaymentService {
             : (nextOrderStatus ?? payment.order.status),
       };
     });
+  };
+
+  getPayment = async (authUserId: number, paymentId: string) => {
+    const normalizedPaymentId = paymentId.trim();
+    if (!normalizedPaymentId) {
+      throw new ApiError("paymentId is required", 400);
+    }
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id: normalizedPaymentId,
+        order: {
+          userId: authUserId,
+          deletedAt: null,
+        },
+      },
+      include: {
+        order: true,
+      },
+    });
+
+    if (!payment) {
+      throw new ApiError("Payment not found", 404);
+    }
+
+    return payment;
+  };
+
+  getPayments = async (authUserId: number, query: GetPaymentsQueryDTO) => {
+    const { page, perPage, sortBy, orderBy, dateFrom, dateTo } = query;
+
+    if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+      throw new ApiError("dateFrom cannot be greater than dateTo", 400);
+    }
+
+    const skip = (page - 1) * perPage;
+    const allowedSortBy = new Set([
+      "id",
+      "phase",
+      "status",
+      "amount",
+      "paidAt",
+      "expiresAt",
+      "createdAt",
+      "updatedAt",
+    ]);
+
+    if (!allowedSortBy.has(sortBy)) {
+      throw new ApiError("sortBy is not valid for payments", 400);
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      order: {
+        userId: authUserId,
+        deletedAt: null,
+      },
+      ...(dateFrom || dateTo
+        ? {
+            createdAt: {
+              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+              ...(dateTo ? { lte: new Date(dateTo) } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [count, data] = await Promise.all([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: perPage,
+        orderBy: {
+          [sortBy]: orderBy,
+        } as Prisma.PaymentOrderByWithRelationInput,
+        include: {
+          order: true,
+        },
+      }),
+    ]);
+
+    const meta = this.paginationService.generateMeta({
+      page,
+      perPage,
+      count,
+    });
+
+    return { data, meta };
   };
 }

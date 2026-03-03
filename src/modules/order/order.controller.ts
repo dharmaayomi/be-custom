@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
+import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 import { OrderService } from "./order.service.js";
 
 export class OrderController {
@@ -37,7 +39,8 @@ export class OrderController {
   getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUserId = Number(res.locals.user.id);
-      const result = await this.orderService.getOrders(authUserId);
+      const queryDto = plainToInstance(GetOrdersQueryDTO, req.query);
+      const result = await this.orderService.getOrders(authUserId, queryDto);
       res.status(200).send(result);
     } catch (error) {
       next(error);

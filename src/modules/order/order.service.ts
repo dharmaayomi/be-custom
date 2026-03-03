@@ -1,9 +1,11 @@
 import {
   DeliveryType,
+  OrderStatus,
   Prisma,
   PrismaClient,
 } from "../../../generated/prisma/client.js";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
+import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
   RAJAONGKIR_API_COST_KEY,
@@ -63,6 +65,29 @@ export class OrderService {
    */
   private stripInstanceSuffix = (modelId: string): string => {
     return modelId.replace(/_\d+$/, "");
+  };
+
+  /**
+   * Accept either material id (with optional instance suffix) or direct material URL.
+   */
+  private normalizeMaterialReference = (
+    materialRef: string | null,
+  ): { id: string | null; materialUrl: string | null } => {
+    if (!materialRef) {
+      return { id: null, materialUrl: null };
+    }
+
+    const normalizedRef = materialRef.trim();
+    if (!normalizedRef) {
+      return { id: null, materialUrl: null };
+    }
+
+    const isLikelyUrl = /^https?:\/\//i.test(normalizedRef);
+    if (isLikelyUrl) {
+      return { id: null, materialUrl: normalizedRef };
+    }
+
+    return { id: this.stripInstanceSuffix(normalizedRef), materialUrl: null };
   };
 
   /**
@@ -134,9 +159,9 @@ export class OrderService {
 
     for (const model of config.mainModels) {
       const productBaseId = this.stripInstanceSuffix(model.id);
-      const materialId = model.texture
-        ? this.stripInstanceSuffix(model.texture)
-        : null;
+      const { id: materialId, materialUrl } = this.normalizeMaterialReference(
+        model.texture,
+      );
 
       const productBase = await this.prisma.productBase.findFirst({
         where: { id: productBaseId, isActive: true, deletedAt: null },
@@ -149,13 +174,20 @@ export class OrderService {
       }
 
       let lockedMaterialPrice = 0;
-      if (materialId) {
+      if (materialId || materialUrl) {
         const material = await this.prisma.productMaterials.findFirst({
-          where: { id: materialId, isActive: true, deletedAt: null },
+          where: {
+            isActive: true,
+            deletedAt: null,
+            OR: [
+              ...(materialId ? [{ id: materialId }] : []),
+              ...(materialUrl ? [{ materialUrl }] : []),
+            ],
+          },
         });
         if (!material) {
           throw new ApiError(
-            `Material not found or inactive: ${materialId}`,
+            `Material not found or inactive: ${materialId ?? materialUrl}`,
             404,
           );
         }
@@ -495,7 +527,9 @@ export class OrderService {
     return order;
   };
 
-  getOrders = async (authUserId: number) => {
+  getOrders = async (authUserId: number, query: GetOrdersQueryDTO) => {
+    const { status } = query;
+
     const user = await this.prisma.user.findUnique({
       where: { id: authUserId },
       include: { addresses: { where: { deletedAt: null } } },
@@ -504,7 +538,10 @@ export class OrderService {
       throw new ApiError("We couldn't find your account", 404);
     }
     const orders = await this.prisma.customOrder.findMany({
-      where: { userId: authUserId },
+      where: {
+        userId: authUserId,
+        ...(status ? { status: status as OrderStatus } : {}),
+      },
       include: { items: { include: { components: true } } },
     });
     return orders;

@@ -4,6 +4,7 @@ import { ValidationMiddleware } from "../../middlewares/validation.middleware.js
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { RoleMiddleware } from "../../middlewares/role.middleware.js";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
+import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 
 export class OrderRouter {
   private router = Router();
@@ -20,6 +21,7 @@ export class OrderRouter {
     this.router.get(
       "/",
       this.jwtMiddleware.verifyToken(),
+      this.validationMiddleware.validateQuery(GetOrdersQueryDTO),
       this.orderController.getOrders,
     );
     this.router.post(
