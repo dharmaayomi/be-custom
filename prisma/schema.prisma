@@ -42,6 +42,7 @@ model User {
   addresses               Address[]
   userDesigns             UserDesign[]
   customOrders            CustomOrder[]
+  notifications           Notification[]
 
   @@map("users")
 }
@@ -184,11 +185,14 @@ model UserDesign {
 
 model CustomOrder {
   id                   String               @id @default(cuid())
+  orderNumber          String?              @unique
   userId               Int
   user                 User                 @relation(fields: [userId], references: [id])
   userDesignId         Int?
   userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
+  currentPaymentPhase  PaymentPhase?        @default(DP)
   designSnapShot       Json?
+  previewUrl           String?
   snapShotAddress      Json
   status               OrderStatus          @default(PENDING_PAYMENT)
   subtotalPrice        Float // price of total item
@@ -199,6 +203,8 @@ model CustomOrder {
   totalWeight          Float
   items                CustomOrderItem[]
   notes                String?
+  totalAmountPaid      Float?
+  remainingAmount      Float?
   grandTotalPrice      Float // price of total item plus delivery fee
   deletedAt            DateTime?
   createdAt            DateTime             @default(now())
@@ -207,6 +213,7 @@ model CustomOrder {
   addressId            Int?
   productionProgresses ProductionProgress[]
   payments             Payment[]
+  notifications        Notification[]
 }
 
 enum DeliveryType {
@@ -216,8 +223,9 @@ enum DeliveryType {
 
 enum OrderStatus {
   PENDING_PAYMENT
-  PAID
-  PROCESSED
+  AWAITING_PRODUCTION
+  IN_PRODUCTION
+  READY_TO_SHIP
   SHIPPED
   COMPLETED
   CANCELLED
@@ -289,14 +297,13 @@ model Payment {
   phase       PaymentPhase
   amount      Float
   status      PaymentStatus @default(WAITING_FOR_PAYMENT)
-  externalId  String? // ID dari Midtrans/Xendit
-  paymentUrl  String? // Link pembayaran
+  paymentUrl  String?
+  externalId  String?
   paymentType String?
-
-  paidAt    DateTime?
-  expiresAt DateTime? // Untuk logika "hangus" jika tidak bayar tepat waktu. pke redis aj ga si men?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  paidAt      DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@map("payments")
 }
@@ -318,13 +325,19 @@ enum Role {
 }
 
 model Notification {
-  id           Int      @id @default(autoincrement())
-  title        String
-  message      String
-  role         Role
-  readByUserId Int[]    @default([])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            Int          @id @default(autoincrement())
+  title         String
+  message       String
+  role          Role
+  targetUserId  Int?
+  targetUser    User?        @relation(fields: [targetUserId], references: [id])
+  readByUserId  Int[]        @default([])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  customOrder   CustomOrder? @relation(fields: [customOrderId], references: [id])
+  customOrderId String?
+
+  @@index([role, targetUserId, createdAt])
 }
 
 enum Provider {

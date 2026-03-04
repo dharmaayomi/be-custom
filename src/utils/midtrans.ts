@@ -14,6 +14,11 @@ type CreateSnapTransactionParams = {
     quantity: number;
     name: string;
   }>;
+  callbacks?: {
+    finish?: string;
+    unfinish?: string;
+    error?: string;
+  };
   orderId: string;
   grossAmount: number;
   customer: {
@@ -54,6 +59,7 @@ class MidtransService {
         phone: params.customer.phone ?? "",
       },
       item_details: params.items,
+      callbacks: params.callbacks,
     };
 
     return this.snap.createTransaction(payload);

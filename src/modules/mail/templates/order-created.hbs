@@ -1,0 +1,867 @@
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order Created - Byte Beyond Persona</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f0f2f1;
+      font-family: &quot;Montserrat&quot;, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    "
+  >
+    <table
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="padding: 48px 20px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            width="680"
+            cellpadding="0"
+            cellspacing="0"
+            style="
+              background-color: #ffffff;
+              overflow: hidden;
+              box-shadow: 0 2px 40px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <tr>
+              <td
+                style="
+                  background-color: #000000;
+                  padding: 44px 48px 28px;
+                  text-align: center;
+                "
+              >
+                <div
+                  style="
+                    height: 2px;
+                    background: linear-gradient(
+                      90deg,
+                      transparent,
+                      #ffcc00,
+                      transparent
+                    );
+                    margin-bottom: 36px;
+                    opacity: 0.8;
+                  "
+                ></div>
+                <img
+                  src="https://res.cloudinary.com/dhdpnfvfn/image/upload/v1769745581/byte-beyond-persona-logo_novsd8.svg"
+                  alt="Byte Beyond Persona Logo"
+                  style="width: 280px; height: auto; display: inline-block"
+                />
+                <p
+                  style="
+                    margin: 20px 0 0;
+                    font-size: 10px;
+                    color: #ffffff;
+                    text-transform: uppercase;
+                    letter-spacing: 5px;
+                    font-weight: 500;
+                  "
+                >
+                  Order Confirmation
+                </p>
+                <div
+                  style="
+                    height: 1px;
+                    background: linear-gradient(
+                      90deg,
+                      transparent,
+                      rgba(0, 0, 0, 0.12),
+                      transparent
+                    );
+                    margin-top: 28px;
+                  "
+                ></div>
+              </td>
+            </tr>
+
+            <tr>
+              <td
+                style="
+                  background: #f8faf9;
+                  padding: 34px 48px 30px;
+                  text-align: center;
+                  border-top: 1px solid #e8ece9;
+                  border-bottom: 1px solid #e8ece9;
+                "
+              >
+                <h1
+                  style="
+                    margin: 0 0 12px;
+                    font-family: &quot;Cormorant Garamond&quot;, Georgia, serif;
+                    font-size: 34px;
+                    font-weight: 400;
+                    color: #0a0a0a;
+                    letter-spacing: 0.4px;
+                    line-height: 1.2;
+                  "
+                >
+                  Terima Kasih,<br />
+                  <span
+                    style="font-weight: 600; color: #00a86b"
+                  >{{firstName}}</span>
+                </h1>
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 13px;
+                    color: #444444;
+                    letter-spacing: 0.3px;
+                    line-height: 1.8;
+                    font-weight: 400;
+                  "
+                >
+                  Pesanan custom Anda telah berhasil dibuat dan sedang kami
+                  proses<br />dengan penuh perhatian dan dedikasi.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 44px 48px 0">
+                <p
+                  style="
+                    margin: 0 0 4px;
+                    font-size: 9px;
+                    color: #00a86b;
+                    text-transform: uppercase;
+                    letter-spacing: 4px;
+                    font-weight: 600;
+                  "
+                >
+                  Detail Pesanan
+                </p>
+                <h3
+                  style="
+                    margin: 0 0 20px;
+                    font-family: &quot;Cormorant Garamond&quot;, Georgia, serif;
+                    font-size: 22px;
+                    font-weight: 400;
+                    color: #0a0a0a;
+                    letter-spacing: 0.3px;
+                  "
+                >
+                  Informasi Order
+                </h3>
+
+                <table
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="border: 1px solid #e8ece9; margin-bottom: 36px"
+                >
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        width: 38%;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Order Number
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 13px;
+                        color: #0a0a0a;
+                        border-bottom: 1px solid #e8ece9;
+                        font-weight: 600;
+                      "
+                    >
+                      {{orderNumber}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Status
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        border-bottom: 1px solid #e8ece9;
+                      "
+                    >
+                      <span
+                        style="
+                          display: inline-block;
+                          padding: 3px 12px;
+                          background: #000000;
+                          color: #ffcc00;
+                          font-size: 10px;
+                          text-transform: uppercase;
+                          letter-spacing: 1.5px;
+                          font-weight: 600;
+                        "
+                      >{{orderStatus}}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Created At
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 12px;
+                        color: #0a0a0a;
+                        border-bottom: 1px solid #e8ece9;
+                      "
+                    >
+                      {{createdAt}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Delivery Type
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 12px;
+                        color: #0a0a0a;
+                        border-bottom: 1px solid #e8ece9;
+                      "
+                    >
+                      {{deliveryType}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Delivery Distance
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 12px;
+                        color: #0a0a0a;
+                        border-bottom: 1px solid #e8ece9;
+                      "
+                    >
+                      {{deliveryDistance}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Total Weight
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 12px;
+                        color: #0a0a0a;
+                        border-bottom: 1px solid #e8ece9;
+                      "
+                    >
+                      {{totalWeight}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        border-bottom: 1px solid #e8ece9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                      "
+                    >
+                      Notes
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 12px;
+                        color: #0a0a0a;
+                        border-bottom: 1px solid #e8ece9;
+                      "
+                    >
+                      {{notes}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                        vertical-align: top;
+                      "
+                    >
+                      Address
+                    </td>
+                    <td
+                      style="
+                        padding: 11px 16px;
+                        font-size: 12px;
+                        color: #0a0a0a;
+                        line-height: 1.8;
+                      "
+                    >
+                      {{#each addressLines}}
+                        <div>{{this}}</div>
+                      {{/each}}
+                    </td>
+                  </tr>
+                </table>
+
+                <p
+                  style="
+                    margin: 0 0 4px;
+                    font-size: 9px;
+                    color: #00a86b;
+                    text-transform: uppercase;
+                    letter-spacing: 4px;
+                    font-weight: 600;
+                  "
+                >
+                  Items
+                </p>
+                <h3
+                  style="
+                    margin: 0 0 16px;
+                    font-family: &quot;Cormorant Garamond&quot;, Georgia, serif;
+                    font-size: 22px;
+                    font-weight: 400;
+                    color: #0a0a0a;
+                  "
+                >
+                  Daftar Produk
+                </h3>
+
+                <div style="overflow-x: auto; margin-bottom: 0">
+                  <table
+                    width="100%"
+                    cellpadding="0"
+                    cellspacing="0"
+                    style="border-collapse: collapse; border: 1px solid #e8ece9"
+                  >
+                    <thead>
+                      <tr style="background: #000000">
+                        <th
+                          align="left"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #ffcc00;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 600;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          No
+                        </th>
+                        <th
+                          align="left"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #ffcc00;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 600;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          Product
+                        </th>
+                        <th
+                          align="left"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #ffcc00;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 600;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          Material
+                        </th>
+                        <th
+                          align="left"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #ffcc00;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 600;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          Components
+                        </th>
+                        <th
+                          align="right"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #999999;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 500;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          Base
+                        </th>
+                        <th
+                          align="right"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #999999;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 500;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          Material
+                        </th>
+                        <th
+                          align="right"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #999999;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 500;
+                            border-right: 1px solid #222;
+                          "
+                        >
+                          Components
+                        </th>
+                        <th
+                          align="right"
+                          style="
+                            padding: 11px 11px;
+                            font-size: 10px;
+                            color: #ffcc00;
+                            text-transform: uppercase;
+                            letter-spacing: 1.5px;
+                            font-weight: 600;
+                          "
+                        >
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {{#each productRows}}
+                        <tr>
+                          <td
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #999;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            {{no}}
+                          </td>
+                          <td
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #0a0a0a;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            <strong
+                              style="
+                              display: block;
+                              margin-bottom: 3px;
+                              font-weight: 600;
+                              font-size: 12px;
+                            "
+                            >{{productName}}</strong>
+                            <span
+                              style="font-size: 10px; color: #999999"
+                            >{{sku}}</span>
+                          </td>
+                          <td
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #0a0a0a;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            <span
+                              style="display: block; margin-bottom: 3px"
+                            >{{materialName}}</span>
+                            <span
+                              style="font-size: 10px; color: #999999"
+                            >{{materialSku}}</span>
+                          </td>
+                          <td
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #555;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            {{components}}
+                          </td>
+                          <td
+                            align="right"
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #666;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            {{basePrice}}
+                          </td>
+                          <td
+                            align="right"
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #666;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            {{materialPrice}}
+                          </td>
+                          <td
+                            align="right"
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #666;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            {{componentPrice}}
+                          </td>
+                          <td
+                            align="right"
+                            style="
+                            padding: 11px 11px;
+                            font-size: 12px;
+                            color: #0a0a0a;
+                            border-top: 1px solid #e8ece9;
+                            vertical-align: top;
+                          "
+                          >
+                            <strong>{{itemTotalPrice}}</strong>
+                          </td>
+                        </tr>
+                      {{/each}}
+                    </tbody>
+                  </table>
+                </div>
+
+                <table
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="border: 1px solid #e8ece9; border-top: none"
+                >
+                  <tr>
+                    <td
+                      style="
+                        padding: 12px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                        border-top: 1px solid #e8ece9;
+                      "
+                    >
+                      Subtotal
+                    </td>
+                    <td
+                      align="right"
+                      style="
+                        padding: 12px 16px;
+                        font-size: 13px;
+                        color: #0a0a0a;
+                        border-top: 1px solid #e8ece9;
+                      "
+                    >
+                      {{subtotalPrice}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 12px 16px;
+                        font-size: 11px;
+                        color: #555;
+                        background: #f8faf9;
+                        text-transform: uppercase;
+                        letter-spacing: 0.8px;
+                        font-weight: 600;
+                        border-top: 1px solid #e8ece9;
+                      "
+                    >
+                      Delivery Fee
+                    </td>
+                    <td
+                      align="right"
+                      style="
+                        padding: 12px 16px;
+                        font-size: 13px;
+                        color: #0a0a0a;
+                        border-top: 1px solid #e8ece9;
+                      "
+                    >
+                      {{deliveryFee}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 16px 16px;
+                        background: #000000;
+                        border-top: 3px solid #ffcc00;
+                      "
+                    >
+                      <span
+                        style="
+                          font-size: 11px;
+                          color: #ffcc00;
+                          text-transform: uppercase;
+                          letter-spacing: 2px;
+                          font-weight: 600;
+                        "
+                      >Grand Total</span>
+                    </td>
+                    <td
+                      align="right"
+                      style="
+                        padding: 16px 16px;
+                        background: #000000;
+                        border-top: 3px solid #ffcc00;
+                      "
+                    >
+                      <strong
+                        style="
+                          font-size: 20px;
+                          color: #ffcc00;
+                          font-family:
+                            &quot;Cormorant Garamond&quot;, Georgia, serif;
+                          font-weight: 500;
+                          letter-spacing: 0.5px;
+                        "
+                      >{{grandTotalPrice}}</strong>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 40px 48px 40px">
+                <table
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="
+                    border: 1px solid #e8ece9;
+                    border-left: 3px solid #00a86b;
+                    background: #f8faf9;
+                  "
+                >
+                  <tr>
+                    <td style="padding: 28px 32px; text-align: center">
+                      <p
+                        style="
+                          margin: 0 0 4px;
+                          font-size: 9px;
+                          color: #00a86b;
+                          text-transform: uppercase;
+                          letter-spacing: 4px;
+                          font-weight: 600;
+                        "
+                      >
+                        Crafted with care
+                      </p>
+                      <p
+                        style="
+                          margin: 0 0 14px;
+                          font-family:
+                            &quot;Cormorant Garamond&quot;, Georgia, serif;
+                          font-size: 20px;
+                          color: #0a0a0a;
+                          font-weight: 400;
+                          line-height: 1.6;
+                        "
+                      >
+                        Setiap detail pesanan Anda kami jaga<br />dengan standar
+                        tertinggi.
+                      </p>
+                      <div
+                        style="
+                          width: 32px;
+                          height: 2px;
+                          background: #00a86b;
+                          margin: 0 auto 16px;
+                        "
+                      ></div>
+                      <p
+                        style="
+                          margin: 0;
+                          font-size: 11px;
+                          color: #888;
+                          line-height: 1.9;
+                          font-weight: 300;
+                          letter-spacing: 0.3px;
+                        "
+                      >
+                        Tim kami akan segera menghubungi Anda jika diperlukan
+                        konfirmasi lebih lanjut.<br />
+                        Terima kasih telah mempercayakan kebutuhan custom Anda
+                        kepada kami.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td
+                style="
+                  padding: 28px 48px;
+                  background: #000000;
+                  text-align: center;
+                "
+              >
+                <div
+                  style="
+                    font-size: 10px;
+                    color: #ffcc00;
+                    letter-spacing: 5px;
+                    text-transform: uppercase;
+                    margin-bottom: 10px;
+                  "
+                >
+                  ✦ Byte Beyond Persona ✦
+                </div>
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 11px;
+                    color: #fefefe;
+                    letter-spacing: 0.5px;
+                    line-height: 1.8;
+                    font-weight: 300;
+                  "
+                >
+                  Email ini dikirim otomatis setelah pembuatan order custom.<br
+                  />
+                  Mohon tidak membalas email ini.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td height="5" style="background-color: #ffcc00"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

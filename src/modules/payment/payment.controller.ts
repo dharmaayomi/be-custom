@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
 import { CreateSnapPaymentDTO } from "./dto/createSnapPayment.dto.js";
+import { GetPaymentsQueryDTO } from "./dto/getPaymentsQuery.dto.js";
 import { PaymentService } from "./payment.service.js";
 
 export class PaymentController {
@@ -33,6 +35,34 @@ export class PaymentController {
   ) => {
     try {
       const result = await this.paymentService.handleMidtransWebhook(req.body);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const paymentId = req.params.paymentId;
+      const result = await this.paymentService.getPayment(
+        authUserId,
+        paymentId,
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPayments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const queryDto = plainToInstance(GetPaymentsQueryDTO, req.query);
+      const result = await this.paymentService.getPayments(
+        authUserId,
+        queryDto,
+      );
       res.status(200).send(result);
     } catch (error) {
       next(error);
