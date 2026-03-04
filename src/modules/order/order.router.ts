@@ -4,6 +4,7 @@ import { ValidationMiddleware } from "../../middlewares/validation.middleware.js
 import { JwtMiddleware } from "../../middlewares/jwt.middleware.js";
 import { RoleMiddleware } from "../../middlewares/role.middleware.js";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
+import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
 import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 
 export class OrderRouter {
@@ -29,6 +30,19 @@ export class OrderRouter {
       this.jwtMiddleware.verifyToken(),
       this.validationMiddleware.validateBody(CreateOrderDTO),
       this.orderController.createCustomOrder,
+    );
+    this.router.get(
+      "/admin",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateQuery(GetAdminOrdersQueryDTO),
+      this.orderController.getAdminOrders,
+    );
+    this.router.patch(
+      "/admin/:orderId/process",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.orderController.processOrder,
     );
     this.router.get(
       "/:orderId",

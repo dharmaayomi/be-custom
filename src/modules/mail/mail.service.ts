@@ -8,6 +8,37 @@ import { MAIL_PASSWORD, MAIL_USER } from "../../config/env.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+type OrderCreatedRow = {
+  no: number;
+  productName: string;
+  sku: string;
+  materialName: string;
+  materialSku: string;
+  components: string;
+  basePrice: string;
+  materialPrice: string;
+  componentPrice: string;
+  itemTotalPrice: string;
+};
+
+type OrderCreatedEmailContext = {
+  firstName: string;
+  orderNumber: string;
+  orderId: string;
+  orderStatus: string;
+  createdAt: string;
+  deliveryType: string;
+  deliveryDistance: string;
+  totalWeight: string;
+  addressLines: string[];
+  notes: string;
+  previewUrl: string | null;
+  productRows: OrderCreatedRow[];
+  subtotalPrice: string;
+  deliveryFee: string;
+  grandTotalPrice: string;
+};
+
 export class MailService {
   private transporter: Transporter;
   private templatesDir: string;
@@ -99,5 +130,12 @@ export class MailService {
     await this.sendEmail(to, "Goodbye from Byte Beyond Persona", "good-bye", {
       firstName,
     });
+  };
+
+  public sendSuccessfulOrderCreation = async (
+    to: string,
+    context: OrderCreatedEmailContext,
+  ): Promise<void> => {
+    await this.sendEmail(to, "Order Created", "order-created", context);
   };
 }

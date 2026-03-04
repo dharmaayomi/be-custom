@@ -5,35 +5,35 @@ import { PORT } from "./config/env.js";
 import { loggerHttp } from "./lib/logger-http.js";
 import { prisma } from "./lib/prisma.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
+import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
+import { RoleMiddleware } from "./middlewares/role.middleware.js";
+import { UploaderMiddleware } from "./middlewares/uploader.middleware.js";
 import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
-import { SampleController } from "./modules/sample/sample.controller.js";
-import { SampleRouter } from "./modules/sample/sample.router.js";
-import { SampleService } from "./modules/sample/sample.service.js";
 import { AuthController } from "./modules/auth/auth.controller.js";
 import { AuthRouter } from "./modules/auth/auth.router.js";
 import { AuthService } from "./modules/auth/auth.service.js";
 import { PasswordService } from "./modules/auth/password.service.js";
 import { TokenService } from "./modules/auth/token.service.js";
-import { MailService } from "./modules/mail/mail.service.js";
 import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
-import { UserRouter } from "./modules/user/user.router.js";
-import { UserService } from "./modules/user/user.service.js";
-import { UserController } from "./modules/user/user.controller.js";
-import { DesignService } from "./modules/design/design.service.js";
 import { DesignController } from "./modules/design/design.controller.js";
 import { DesignRouter } from "./modules/design/design.router.js";
-import { JwtMiddleware } from "./middlewares/jwt.middleware.js";
-import { RoleMiddleware } from "./middlewares/role.middleware.js";
-import { UploaderMiddleware } from "./middlewares/uploader.middleware.js";
-import { ProductService } from "./modules/product/product.service.js";
-import { ProductController } from "./modules/product/product.controller.js";
-import { ProductRouter } from "./modules/product/product.router.js";
-import { OrderService } from "./modules/order/order.service.js";
+import { DesignService } from "./modules/design/design.service.js";
+import { MailService } from "./modules/mail/mail.service.js";
+import { NotificationController } from "./modules/notifications/notification.controller.js";
+import { NotificationRouter } from "./modules/notifications/notification.router.js";
+import { NotificationService } from "./modules/notifications/notification.service.js";
 import { OrderController } from "./modules/order/order.controller.js";
 import { OrderRouter } from "./modules/order/order.router.js";
-import { PaymentService } from "./modules/payment/payment.service.js";
+import { OrderService } from "./modules/order/order.service.js";
 import { PaymentController } from "./modules/payment/payment.controller.js";
 import { PaymentRouter } from "./modules/payment/payment.router.js";
+import { PaymentService } from "./modules/payment/payment.service.js";
+import { ProductController } from "./modules/product/product.controller.js";
+import { ProductRouter } from "./modules/product/product.router.js";
+import { ProductService } from "./modules/product/product.service.js";
+import { UserController } from "./modules/user/user.controller.js";
+import { UserRouter } from "./modules/user/user.router.js";
+import { UserService } from "./modules/user/user.service.js";
 
 export class App {
   app: Express;
@@ -69,8 +69,16 @@ export class App {
     const userService = new UserService(prismaClient);
     const designService = new DesignService(prismaClient, cloudinaryService);
     const productService = new ProductService(prismaClient, cloudinaryService);
-    const orderService = new OrderService(prismaClient);
-    const paymentService = new PaymentService(prismaClient);
+    const notificationService = new NotificationService(prismaClient);
+    const orderService = new OrderService(
+      prismaClient,
+      mailService,
+      notificationService,
+    );
+    const paymentService = new PaymentService(
+      prismaClient,
+      notificationService,
+    );
 
     // controllers
     const authController = new AuthController(authService);
@@ -85,6 +93,9 @@ export class App {
     );
     const orderController = new OrderController(orderService);
     const paymentController = new PaymentController(paymentService);
+    const notificationController = new NotificationController(
+      notificationService,
+    );
 
     // middlewares
     const validationMiddleware = new ValidationMiddleware();
@@ -127,6 +138,12 @@ export class App {
       validationMiddleware,
       jwtMiddleware,
     );
+    const notificationRouter = new NotificationRouter(
+      notificationController,
+      validationMiddleware,
+      jwtMiddleware,
+      roleMiddleware,
+    );
 
     // routes
     // this.app.use("/samples", sampleRouter.getRouter());
@@ -136,6 +153,7 @@ export class App {
     this.app.use("/product", productRouter.getRouter());
     this.app.use("/order", orderRouter.getRouter());
     this.app.use("/payment", paymentRouter.getRouter());
+    this.app.use("/notification", notificationRouter.getRouter());
   }
 
   private handleError() {

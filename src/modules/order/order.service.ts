@@ -1,10 +1,13 @@
 import {
   DeliveryType,
   OrderStatus,
+  PaymentPhase,
   Prisma,
   PrismaClient,
+  Role,
 } from "../../../generated/prisma/client.js";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
+import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
 import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
@@ -14,6 +17,9 @@ import {
   STORE_LONGITUDE,
 } from "../../config/env.js";
 import { customAlphabet } from "nanoid";
+import { MailService } from "../mail/mail.service.js";
+import { NotificationService } from "../notifications/notification.service.js";
+import { PaginationService } from "../pagination/pagination.service.js";
 
 interface DesignModel {
   id: string;
@@ -54,8 +60,29 @@ export class OrderService {
   private readonly DEFAULT_COURIER = "jne";
   private readonly RAJAONGKIR_DOMESTIC_COST_URL =
     "https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost";
+  private paginationService = new PaginationService();
 
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    private prisma: PrismaClient,
+    private mailService: MailService,
+    private notificationService: NotificationService,
+  ) {}
+
+  private formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(Math.round(value));
+  };
+
+  private formatDateTime = (value: Date): string => {
+    return new Intl.DateTimeFormat("id-ID", {
+      dateStyle: "full",
+      timeStyle: "short",
+      timeZone: "Asia/Jakarta",
+    }).format(value);
+  };
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -332,7 +359,13 @@ export class OrderService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: authUserId },
-      select: { id: true, accountStatus: true, deletedAt: true },
+      select: {
+        id: true,
+        firstName: true,
+        email: true,
+        accountStatus: true,
+        deletedAt: true,
+      },
     });
 
     if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
@@ -444,15 +477,14 @@ export class OrderService {
           );
     const grandTotalPrice = subtotalPrice + deliveryFee;
 
-    const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-    const nanoid = customAlphabet(alphabet, 7);
+    const nanoid = customAlphabet("0123456789", 8);
     const generateOrderCode = () => {
       return `CSTF-${nanoid()}`;
     };
     const maxOrderNumberRetry = 3;
     for (let attempt = 1; attempt <= maxOrderNumberRetry; attempt += 1) {
       try {
-        return await this.prisma.customOrder.create({
+        const createdOrder = await this.prisma.customOrder.create({
           data: {
             userId: authUserId,
             userDesignId: design?.id,
@@ -467,6 +499,9 @@ export class OrderService {
             deliveryDistance,
             deliveryFee,
             status: "PENDING_PAYMENT",
+            currentPaymentPhase: PaymentPhase.DP,
+            totalAmountPaid: 0,
+            remainingAmount: grandTotalPrice,
             notes: notes?.trim(),
             grandTotalPrice,
             items: {
@@ -489,8 +524,155 @@ export class OrderService {
           },
           include: {
             userDesign: true,
+            items: {
+              include: {
+                productBase: {
+                  select: { productName: true, sku: true },
+                },
+                material: {
+                  select: { materialName: true, materialSku: true },
+                },
+                components: {
+                  include: {
+                    productComponent: {
+                      select: { componentName: true, componentSku: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         });
+
+        const deliveryLabel =
+          createdOrder.deliveryType === DeliveryType.DELIVERY
+            ? "Delivery"
+            : "Pickup";
+        const itemCount = createdOrder.items.length;
+        const userNotificationTitle = "Pesanan berhasil dibuat";
+        const userNotificationMessage = [
+          `Order ${createdOrder.orderNumber ?? createdOrder.id} berhasil dibuat.`,
+          `Status saat ini: ${createdOrder.status}.`,
+          `Metode: ${deliveryLabel}.`,
+          `Total item: ${itemCount}.`,
+          "Silakan selesaikan pembayaran DP agar produksi dapat dimulai.",
+        ].join(" ");
+
+        const adminNotificationTitle = "Pesanan baru masuk";
+        const adminNotificationMessage = [
+          `Pesanan baru ${createdOrder.orderNumber ?? createdOrder.id} dari ${user.firstName}.`,
+          `Status: ${createdOrder.status}.`,
+          `Metode: ${deliveryLabel}.`,
+          `Total item: ${itemCount}.`,
+          `Grand total: ${this.formatCurrency(createdOrder.grandTotalPrice)}.`,
+          "Menunggu pembayaran DP dari customer.",
+        ].join(" ");
+
+        const notificationResult = await Promise.allSettled([
+          this.notificationService.createNotification({
+            title: userNotificationTitle,
+            message: userNotificationMessage,
+            role: Role.USER,
+            targetUserId: authUserId,
+          }),
+          this.notificationService.createNotification({
+            title: adminNotificationTitle,
+            message: adminNotificationMessage,
+            role: Role.ADMIN,
+            targetUserId: null,
+          }),
+        ]);
+        notificationResult.forEach((result, index) => {
+          if (result.status === "rejected") {
+            const target = index === 0 ? "USER" : "ADMIN";
+            console.error(
+              `[Order ${createdOrder.id}] Failed to create ${target} notification:`,
+              result.reason,
+            );
+          }
+        });
+
+        if (user.email) {
+          const productRows = createdOrder.items.map((item, index) => {
+            const componentTotal = item.components.reduce(
+              (sum, component) => sum + component.lockedSubTotal,
+              0,
+            );
+            const componentSummary =
+              item.components.length > 0
+                ? item.components
+                    .map((component) => {
+                      const componentName =
+                        component.productComponent?.componentName ??
+                        component.componentId;
+                      const componentPrice = this.formatCurrency(
+                        component.lockedPricePerUnit,
+                      );
+                      return `${componentName} x${component.quantity} (${componentPrice})`;
+                    })
+                    .join(", ")
+                : "-";
+
+            return {
+              no: index + 1,
+              productName: item.productBase.productName,
+              sku: item.productBase.sku,
+              materialName: item.material?.materialName ?? "-",
+              materialSku: item.material?.materialSku ?? "-",
+              components: componentSummary,
+              basePrice: this.formatCurrency(item.lockedBasePrice),
+              materialPrice: this.formatCurrency(item.lockedMaterialPrice),
+              componentPrice: this.formatCurrency(componentTotal),
+              itemTotalPrice: this.formatCurrency(item.itemTotalPrice),
+            };
+          });
+
+          const addressLines =
+            deliveryType === DeliveryType.DELIVERY && address
+              ? [
+                  `${address.recipientName} (${address.phoneNumber})`,
+                  `${address.line1}${address.line2 ? `, ${address.line2}` : ""}`,
+                  `${address.subdistrict ? `${address.subdistrict}, ` : ""}${address.district}, ${address.city}`,
+                  `${address.province}, ${address.postalCode}`,
+                  address.country,
+                ]
+              : ["Pickup at store"];
+
+          try {
+            await this.mailService.sendSuccessfulOrderCreation(user.email, {
+              firstName: user.firstName,
+              orderNumber: createdOrder.orderNumber ?? "-",
+              orderId: createdOrder.id,
+              orderStatus: createdOrder.status,
+              createdAt: this.formatDateTime(createdOrder.createdAt),
+              deliveryType:
+                createdOrder.deliveryType === DeliveryType.DELIVERY
+                  ? "Delivery"
+                  : "Pickup",
+              deliveryDistance:
+                typeof createdOrder.deliveryDistance === "number"
+                  ? `${createdOrder.deliveryDistance.toFixed(2)} km`
+                  : "-",
+              totalWeight: `${Number(createdOrder.totalWeight).toFixed(2)} kg`,
+              addressLines,
+              notes: createdOrder.notes?.trim() || "-",
+              previewUrl: createdOrder.previewUrl || null,
+              productRows,
+              subtotalPrice: this.formatCurrency(createdOrder.subtotalPrice),
+              deliveryFee: this.formatCurrency(createdOrder.deliveryFee ?? 0),
+              grandTotalPrice: this.formatCurrency(
+                createdOrder.grandTotalPrice,
+              ),
+            });
+          } catch (mailError) {
+            console.error(
+              `[Order ${createdOrder.id}] Failed to send order creation email:`,
+              mailError,
+            );
+          }
+        }
+
+        return createdOrder;
       } catch (error) {
         const isOrderNumberConflict =
           error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -517,8 +699,8 @@ export class OrderService {
     if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
       throw new ApiError("We couldn't find your account", 404);
     }
-    const order = await this.prisma.customOrder.findUnique({
-      where: { id: orderId },
+    const order = await this.prisma.customOrder.findFirst({
+      where: { id: orderId, userId: authUserId, deletedAt: null },
       include: { items: { include: { components: true } } },
     });
     if (!order) {
@@ -545,5 +727,135 @@ export class OrderService {
       include: { items: { include: { components: true } } },
     });
     return orders;
+  };
+
+  getAdminOrders = async (query: GetAdminOrdersQueryDTO) => {
+    const { page, perPage, sortBy, orderBy, status, dateFrom, dateTo } = query;
+
+    if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+      throw new ApiError("dateFrom cannot be greater than dateTo", 400);
+    }
+
+    const allowedSortBy = new Set([
+      "id",
+      "orderNumber",
+      "status",
+      "deliveryType",
+      "grandTotalPrice",
+      "totalAmountPaid",
+      "remainingAmount",
+      "createdAt",
+      "updatedAt",
+    ]);
+
+    if (!allowedSortBy.has(sortBy)) {
+      throw new ApiError("sortBy is not valid for orders", 400);
+    }
+
+    const skip = (page - 1) * perPage;
+    const where: Prisma.CustomOrderWhereInput = {
+      deletedAt: null,
+      ...(status ? { status } : {}),
+      ...(dateFrom || dateTo
+        ? {
+            createdAt: {
+              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+              ...(dateTo ? { lte: new Date(dateTo) } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [count, data] = await Promise.all([
+      this.prisma.customOrder.count({ where }),
+      this.prisma.customOrder.findMany({
+        where,
+        skip,
+        take: perPage,
+        orderBy: {
+          [sortBy]: orderBy,
+        } as Prisma.CustomOrderOrderByWithRelationInput,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          items: {
+            include: {
+              components: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const meta = this.paginationService.generateMeta({
+      page,
+      perPage,
+      count,
+    });
+
+    return { data, meta };
+  };
+
+  processOrder = async (orderId: string) => {
+    const order = await this.prisma.customOrder.findFirst({
+      where: { id: orderId, deletedAt: null },
+      select: {
+        id: true,
+        orderNumber: true,
+        userId: true,
+        status: true,
+      },
+    });
+
+    if (!order) {
+      throw new ApiError("Order not found", 404);
+    }
+
+    if (order.status !== OrderStatus.AWAITING_PRODUCTION) {
+      throw new ApiError(
+        `Only orders with status ${OrderStatus.AWAITING_PRODUCTION} can be processed`,
+        400,
+      );
+    }
+
+    const updatedOrder = await this.prisma.customOrder.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.IN_PRODUCTION },
+      include: { items: { include: { components: true } } },
+    });
+
+    const orderRef = updatedOrder.orderNumber ?? updatedOrder.id;
+    const notificationResults = await Promise.allSettled([
+      this.notificationService.createNotification({
+        title: "Produksi dimulai",
+        message: `Order ${orderRef} mulai diproduksi. Status kini: ${OrderStatus.IN_PRODUCTION}.`,
+        role: Role.USER,
+        targetUserId: updatedOrder.userId,
+      }),
+      this.notificationService.createNotification({
+        title: "Order diproses produksi",
+        message: `Order ${orderRef} telah dipindahkan ke status ${OrderStatus.IN_PRODUCTION}.`,
+        role: Role.ADMIN,
+        targetUserId: null,
+      }),
+    ]);
+
+    notificationResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        const target = index === 0 ? "USER" : "ADMIN";
+        console.error(
+          `[Order ${updatedOrder.id}] Failed to create ${target} process-order notification:`,
+          result.reason,
+        );
+      }
+    });
+
+    return updatedOrder;
   };
 }

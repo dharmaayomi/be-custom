@@ -65,6 +65,7 @@
     "pino": "^10.3.0",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
+    "socket.io": "^4.8.3",
     "stream": "^0.0.3"
   },
   "lint-staged": {
