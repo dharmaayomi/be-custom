@@ -7,6 +7,10 @@ import {
 } from "../../../generated/prisma/client.js";
 import { BASE_URL_FE } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
+import {
+  formatIDRCurrency,
+  humanizeEnumLabel,
+} from "../../utils/formatters.js";
 import midtransService from "../../utils/midtrans.js";
 import { NotificationService } from "../notifications/notification.service.js";
 import { CreateProductionProgressDTO } from "./dto/createProductionProgress.dto.js";
@@ -400,21 +404,38 @@ export class ProductionService {
       }
     }
 
-    if (paymentCreated && order) {
-      await Promise.allSettled([
+    if (order) {
+      const paymentPhaseLabel = paymentCreated
+        ? humanizeEnumLabel(paymentCreated.phase)
+        : null;
+      const paymentAmountLabel = paymentCreated
+        ? formatIDRCurrency(paymentCreated.amount)
+        : null;
+      const userMessage = paymentCreated
+        ? `Progress order ${orderRef} diperbarui ke ${body.percentage}%. Foto progress terbaru sudah bisa dilihat. Tagihan ${paymentPhaseLabel} sebesar ${paymentAmountLabel} telah dibuat.`
+        : `Progress order ${orderRef} diperbarui ke ${body.percentage}%. Foto progress terbaru sudah bisa dilihat.`;
+
+      const notificationTasks = [
         this.notificationService.createNotification({
           role: Role.USER,
           targetUserId: order.userId,
-          title: "Tagihan pembayaran tersedia",
-          message: `Progress order ${orderRef} diperbarui ke ${body.percentage}%. Tagihan ${paymentCreated.phase} sebesar ${paymentCreated.amount} telah dibuat.`,
+          title: "Update progress produksi",
+          message: userMessage,
         }),
-        this.notificationService.createNotification({
-          role: Role.ADMIN,
-          targetUserId: null,
-          title: "Tagihan progress dibuat",
-          message: `Order ${orderRef} progress ${body.percentage}% menghasilkan tagihan ${paymentCreated.phase} sebesar ${paymentCreated.amount}.`,
-        }),
-      ]);
+      ];
+
+      if (paymentCreated) {
+        notificationTasks.push(
+          this.notificationService.createNotification({
+            role: Role.ADMIN,
+            targetUserId: null,
+            title: "Tagihan progress dibuat",
+            message: `Order ${orderRef} progress ${body.percentage}% menghasilkan tagihan ${paymentPhaseLabel} sebesar ${paymentAmountLabel}.`,
+          }),
+        );
+      }
+
+      await Promise.allSettled(notificationTasks);
     }
 
     return {
@@ -422,4 +443,27 @@ export class ProductionService {
       paymentCreated,
     };
   };
+
+  getProductionProgress = async (authUserId: number, orderId: string) => {
+    void authUserId;
+
+    return this.prisma.productionProgress.findMany({
+      where: {
+        orderId,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+      select: {
+        id: true,
+        orderId: true,
+        percentage: true,
+        photoUrls: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  };
+  getAllProductionProgressess = async (authUserId: number) => {};
 }

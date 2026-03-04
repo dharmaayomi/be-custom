@@ -12,6 +12,10 @@ import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
 import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
+  formatIDRCurrency,
+  humanizeEnumLabel,
+} from "../../utils/formatters.js";
+import {
   RAJAONGKIR_API_COST_KEY,
   RAJAONGKIR_ORIGIN_SUBDISTRICT_ID,
   STORE_LATITUDE,
@@ -72,11 +76,7 @@ export class OrderService {
   ) {}
 
   private formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(Math.round(value));
+    return formatIDRCurrency(value);
   };
 
   private formatDateTime = (value: Date): string => {
@@ -572,7 +572,7 @@ export class OrderService {
         const userNotificationTitle = "Pesanan berhasil dibuat";
         const userNotificationMessage = [
           `Order ${createdOrder.orderNumber ?? createdOrder.id} berhasil dibuat.`,
-          `Status saat ini: ${createdOrder.status}.`,
+          `Status saat ini: ${humanizeEnumLabel(createdOrder.status)}.`,
           `Metode: ${deliveryLabel}.`,
           `Total item: ${itemCount}.`,
           "Silakan selesaikan pembayaran DP agar produksi dapat dimulai.",
@@ -581,7 +581,7 @@ export class OrderService {
         const adminNotificationTitle = "Pesanan baru masuk";
         const adminNotificationMessage = [
           `Pesanan baru ${createdOrder.orderNumber ?? createdOrder.id} dari ${user.firstName}.`,
-          `Status: ${createdOrder.status}.`,
+          `Status: ${humanizeEnumLabel(createdOrder.status)}.`,
           `Metode: ${deliveryLabel}.`,
           `Total item: ${itemCount}.`,
           `Grand total: ${this.formatCurrency(createdOrder.grandTotalPrice)}.`,
@@ -907,13 +907,13 @@ export class OrderService {
     const notificationResults = await Promise.allSettled([
       this.notificationService.createNotification({
         title: "Produksi dimulai",
-        message: `Order ${orderRef} mulai diproduksi. Status kini: ${OrderStatus.IN_PRODUCTION}.`,
+        message: `Order ${orderRef} mulai diproduksi. Status kini: ${humanizeEnumLabel(OrderStatus.IN_PRODUCTION)}.`,
         role: Role.USER,
         targetUserId: updatedOrder.userId,
       }),
       this.notificationService.createNotification({
         title: "Order diproses produksi",
-        message: `Order ${orderRef} telah dipindahkan ke status ${OrderStatus.IN_PRODUCTION}.`,
+        message: `Order ${orderRef} telah dipindahkan ke status ${humanizeEnumLabel(OrderStatus.IN_PRODUCTION)}.`,
         role: Role.ADMIN,
         targetUserId: null,
       }),

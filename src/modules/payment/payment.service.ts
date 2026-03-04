@@ -8,6 +8,7 @@ import {
 } from "../../../generated/prisma/client.js";
 import { BASE_URL_FE } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
+import { humanizeEnumLabel } from "../../utils/formatters.js";
 import midtransService from "../../utils/midtrans.js";
 import { NotificationService } from "../notifications/notification.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
@@ -176,7 +177,7 @@ export class PaymentService {
     targetUserId: number;
   }) => {
     const progressLabel = `${params.progressPercentage}%`;
-    const phaseLabel = params.phase;
+    const phaseLabel = humanizeEnumLabel(params.phase);
     const orderRef = params.orderNumber ?? params.orderId;
 
     const userTitle = "Tahap pembayaran tersedia";
@@ -222,17 +223,20 @@ export class PaymentService {
     orderNumber: string | null;
     targetUserId: number;
   }) => {
+    const awaitingProductionLabel = humanizeEnumLabel(
+      OrderStatus.AWAITING_PRODUCTION,
+    );
     const orderRef = params.orderNumber ?? params.orderId;
     const userTitle = "Pembayaran DP diterima";
     const userMessage = [
       `Pembayaran DP untuk order ${orderRef} telah diterima.`,
-      "Status order berubah menjadi AWAITING_PRODUCTION dan menunggu produksi dimulai.",
+      `Status order berubah menjadi ${awaitingProductionLabel} dan menunggu produksi dimulai.`,
     ].join(" ");
 
     const adminTitle = "Order menunggu produksi";
     const adminMessage = [
       `DP order ${orderRef} telah dibayar.`,
-      "Status order kini AWAITING_PRODUCTION dan siap dijadwalkan ke produksi.",
+      `Status order kini ${awaitingProductionLabel} dan siap dijadwalkan ke produksi.`,
     ].join(" ");
 
     const notificationResults = await Promise.allSettled([

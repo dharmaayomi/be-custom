@@ -25,6 +25,12 @@ export class ProductionRouter {
       this.validationMiddleware.validateBody(CreateProductionProgressDTO),
       this.productionController.createProductionProgress,
     );
+    this.router.get(
+      "/:orderId",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.productionController.getProductionProgress,
+    );
   };
 
   getRouter = () => {

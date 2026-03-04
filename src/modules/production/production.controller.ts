@@ -22,4 +22,22 @@ export class ProductionController {
       next(error);
     }
   };
+
+  getProductionProgress = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const orderId = req.params.orderId;
+      const result = await this.productionService.getProductionProgress(
+        authUserId,
+        orderId,
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
