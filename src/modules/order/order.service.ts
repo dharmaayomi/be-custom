@@ -2,6 +2,7 @@ import {
   DeliveryType,
   OrderStatus,
   PaymentPhase,
+  PaymentStatus,
   Prisma,
   PrismaClient,
   Role,
@@ -27,8 +28,10 @@ interface DesignModel {
 }
 
 interface DesignConfiguration {
-  mainModels: DesignModel[];
-  addOnModels: DesignModel[];
+  productBase?: DesignModel[];
+  productComponent?: DesignModel[];
+  mainModels?: DesignModel[];
+  addOnModels?: DesignModel[];
 }
 
 interface LockedComponent {
@@ -82,6 +85,26 @@ export class OrderService {
       timeStyle: "short",
       timeZone: "Asia/Jakarta",
     }).format(value);
+  };
+
+  private getOrderPaymentSummary = async (
+    orderId: string,
+    grandTotalPrice: number,
+  ) => {
+    const paidSummary = await this.prisma.payment.aggregate({
+      where: {
+        orderId,
+        status: PaymentStatus.PAID,
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    const totalPaid = paidSummary._sum.amount ?? 0;
+    const remaining = Math.max(0, grandTotalPrice - totalPaid);
+
+    return { totalPaid, remaining };
   };
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -141,15 +164,16 @@ export class OrderService {
     configuration: unknown,
   ): Promise<PricingResult> => {
     const config = configuration as DesignConfiguration;
+    const productBaseModels = config?.productBase ?? config?.mainModels ?? [];
+    const productComponents =
+      config?.productComponent ?? config?.addOnModels ?? [];
 
-    if (!config?.mainModels || config.mainModels.length === 0) {
+    if (productBaseModels.length === 0) {
       throw new ApiError("Design has no products to order", 400);
     }
 
-    // Aggregate all addons globally: componentId → total quantity
-    const globalAddons = this.aggregateAddons(config.addOnModels ?? []);
+    const globalAddons = this.aggregateAddons(productComponents);
 
-    // Lock each component from DB, accumulate global price & weight
     const lockedGlobalComponents: LockedComponent[] = [];
     let globalComponentTotalPrice = 0;
     let globalComponentTotalWeight = 0;
@@ -184,7 +208,7 @@ export class OrderService {
     let subtotalPrice = 0;
     let totalWeight = 0;
 
-    for (const model of config.mainModels) {
+    for (const model of productBaseModels) {
       const productBaseId = this.stripInstanceSuffix(model.id);
       const { id: materialId, materialUrl } = this.normalizeMaterialReference(
         model.texture,
@@ -257,8 +281,6 @@ export class OrderService {
 
     return { lockedItems, subtotalPrice, totalWeight };
   };
-
-  // ── Existing (unchanged) ─────────────────────────────────────────────────────
 
   private getRajaOngkirCostValue = (payload: any): number | null => {
     const komerceCost = payload?.data?.[0]?.cost;
@@ -499,9 +521,7 @@ export class OrderService {
             deliveryDistance,
             deliveryFee,
             status: "PENDING_PAYMENT",
-            currentPaymentPhase: PaymentPhase.DP,
-            totalAmountPaid: 0,
-            remainingAmount: grandTotalPrice,
+            currentPaymentPhase: null,
             notes: notes?.trim(),
             grandTotalPrice,
             items: {
@@ -672,7 +692,15 @@ export class OrderService {
           }
         }
 
-        return createdOrder;
+        const paymentSummary = await this.getOrderPaymentSummary(
+          createdOrder.id,
+          createdOrder.grandTotalPrice,
+        );
+
+        return {
+          ...createdOrder,
+          ...paymentSummary,
+        };
       } catch (error) {
         const isOrderNumberConflict =
           error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -706,7 +734,15 @@ export class OrderService {
     if (!order) {
       throw new ApiError("We couldn't find your order", 404);
     }
-    return order;
+    const paymentSummary = await this.getOrderPaymentSummary(
+      order.id,
+      order.grandTotalPrice,
+    );
+
+    return {
+      ...order,
+      ...paymentSummary,
+    };
   };
 
   getOrders = async (authUserId: number, query: GetOrdersQueryDTO) => {
@@ -742,8 +778,6 @@ export class OrderService {
       "status",
       "deliveryType",
       "grandTotalPrice",
-      "totalAmountPaid",
-      "remainingAmount",
       "createdAt",
       "updatedAt",
     ]);
@@ -802,6 +836,45 @@ export class OrderService {
     return { data, meta };
   };
 
+  getAdminOrder = async (orderId: string) => {
+    const order = await this.prisma.customOrder.findFirst({
+      where: { id: orderId, deletedAt: null },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        items: {
+          include: {
+            productBase: true,
+            material: true,
+            components: {
+              include: {
+                productComponent: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!order) {
+      throw new ApiError("We couldn't find your order", 404);
+    }
+    const paymentSummary = await this.getOrderPaymentSummary(
+      order.id,
+      order.grandTotalPrice,
+    );
+
+    return {
+      ...order,
+      ...paymentSummary,
+    };
+  };
+
   processOrder = async (orderId: string) => {
     const order = await this.prisma.customOrder.findFirst({
       where: { id: orderId, deletedAt: null },
@@ -856,6 +929,9 @@ export class OrderService {
       }
     });
 
-    return updatedOrder;
+    return {
+      message: "Order processed successfully",
+      data: updatedOrder.status,
+    };
   };
 }

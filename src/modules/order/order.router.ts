@@ -45,6 +45,12 @@ export class OrderRouter {
       this.orderController.processOrder,
     );
     this.router.get(
+      "/admin/:orderId",
+      this.jwtMiddleware.verifyToken(),
+      this.roleMiddleware.verifyRole(["ADMIN"]),
+      this.orderController.getAdminOrder,
+    );
+    this.router.get(
       "/:orderId",
       this.jwtMiddleware.verifyToken(),
       this.orderController.getOrder,

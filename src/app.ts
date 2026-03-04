@@ -28,6 +28,9 @@ import { OrderService } from "./modules/order/order.service.js";
 import { PaymentController } from "./modules/payment/payment.controller.js";
 import { PaymentRouter } from "./modules/payment/payment.router.js";
 import { PaymentService } from "./modules/payment/payment.service.js";
+import { ProductionController } from "./modules/production/production.controller.js";
+import { ProductionRouter } from "./modules/production/production.router.js";
+import { ProductionService } from "./modules/production/production.service.js";
 import { ProductController } from "./modules/product/product.controller.js";
 import { ProductRouter } from "./modules/product/product.router.js";
 import { ProductService } from "./modules/product/product.service.js";
@@ -79,6 +82,10 @@ export class App {
       prismaClient,
       notificationService,
     );
+    const productionService = new ProductionService(
+      prismaClient,
+      notificationService,
+    );
 
     // controllers
     const authController = new AuthController(authService);
@@ -93,6 +100,7 @@ export class App {
     );
     const orderController = new OrderController(orderService);
     const paymentController = new PaymentController(paymentService);
+    const productionController = new ProductionController(productionService);
     const notificationController = new NotificationController(
       notificationService,
     );
@@ -138,6 +146,12 @@ export class App {
       validationMiddleware,
       jwtMiddleware,
     );
+    const productionRouter = new ProductionRouter(
+      productionController,
+      validationMiddleware,
+      jwtMiddleware,
+      roleMiddleware,
+    );
     const notificationRouter = new NotificationRouter(
       notificationController,
       validationMiddleware,
@@ -153,6 +167,7 @@ export class App {
     this.app.use("/product", productRouter.getRouter());
     this.app.use("/order", orderRouter.getRouter());
     this.app.use("/payment", paymentRouter.getRouter());
+    this.app.use("/production", productionRouter.getRouter());
     this.app.use("/notification", notificationRouter.getRouter());
   }
 

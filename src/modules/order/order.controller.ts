@@ -58,6 +58,16 @@ export class OrderController {
     }
   };
 
+  getAdminOrder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const orderId = req.params.orderId;
+      const result = await this.orderService.getAdminOrder(orderId);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   processOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orderId = req.params.orderId;

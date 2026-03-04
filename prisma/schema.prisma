@@ -106,7 +106,7 @@ model ProductBase {
   updatedAt        DateTime          @updatedAt
   customOrderItems CustomOrderItem[]
 
-  @@map("products")
+  @@map("productBases")
 }
 
 model ProductComponent {
@@ -190,7 +190,7 @@ model CustomOrder {
   user                 User                 @relation(fields: [userId], references: [id])
   userDesignId         Int?
   userDesign           UserDesign?          @relation(fields: [userDesignId], references: [id])
-  currentPaymentPhase  PaymentPhase?        @default(DP)
+  currentPaymentPhase  PaymentPhase?
   designSnapShot       Json?
   previewUrl           String?
   snapShotAddress      Json
@@ -203,8 +203,6 @@ model CustomOrder {
   totalWeight          Float
   items                CustomOrderItem[]
   notes                String?
-  totalAmountPaid      Float?
-  remainingAmount      Float?
   grandTotalPrice      Float // price of total item plus delivery fee
   deletedAt            DateTime?
   createdAt            DateTime             @default(now())
@@ -305,6 +303,7 @@ model Payment {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  @@unique([orderId, phase])
   @@map("payments")
 }
 
@@ -313,7 +312,7 @@ model ProductionProgress {
   orderId     String
   order       CustomOrder @relation(fields: [orderId], references: [id])
   percentage  Int
-  photoUrl    String
+  photoUrls   String[]
   description String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
