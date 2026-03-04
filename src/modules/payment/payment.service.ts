@@ -8,6 +8,7 @@ import {
 } from "../../../generated/prisma/client.js";
 import { BASE_URL_FE } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
+import { humanizeEnumLabel } from "../../utils/formatters.js";
 import midtransService from "../../utils/midtrans.js";
 import { NotificationService } from "../notifications/notification.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
@@ -84,6 +85,47 @@ export class PaymentService {
     return null;
   };
 
+  private getLatestPaidPhase = (
+    paidPhases: PaymentPhase[],
+  ): PaymentPhase | null => {
+    const paidSet = new Set(paidPhases);
+    if (paidSet.has(PaymentPhase.FINAL)) {
+      return PaymentPhase.FINAL;
+    }
+    if (paidSet.has(PaymentPhase.PROGRESS_2)) {
+      return PaymentPhase.PROGRESS_2;
+    }
+    if (paidSet.has(PaymentPhase.PROGRESS_1)) {
+      return PaymentPhase.PROGRESS_1;
+    }
+    if (paidSet.has(PaymentPhase.DP)) {
+      return PaymentPhase.DP;
+    }
+    return null;
+  };
+
+  private getNextPhase = (
+    currentPhase: PaymentPhase | null,
+  ): PaymentPhase | null => {
+    switch (currentPhase) {
+      case null:
+        return PaymentPhase.DP;
+      case PaymentPhase.DP:
+        return PaymentPhase.PROGRESS_1;
+      case PaymentPhase.PROGRESS_1:
+        return PaymentPhase.PROGRESS_2;
+      case PaymentPhase.PROGRESS_2:
+        return PaymentPhase.FINAL;
+      case PaymentPhase.FINAL:
+      default:
+        return null;
+    }
+  };
+
+  private getDpAmount = (grandTotalPrice: number): number => {
+    return Math.ceil(grandTotalPrice * 0.25);
+  };
+
   private getPhaseAmount = (
     grandTotalPrice: number,
     phase: PaymentPhase,
@@ -102,6 +144,16 @@ export class PaymentService {
       default:
         return normalizedTotal;
     }
+  };
+
+  private getPhasePercentage = (
+    phaseAmount: number,
+    grandTotalPrice: number,
+  ): number => {
+    if (grandTotalPrice <= 0) {
+      return 0;
+    }
+    return Number(((phaseAmount / grandTotalPrice) * 100).toFixed(2));
   };
 
   private getMinimumProgressForPhase = (phase: PaymentPhase): number => {
@@ -125,7 +177,7 @@ export class PaymentService {
     targetUserId: number;
   }) => {
     const progressLabel = `${params.progressPercentage}%`;
-    const phaseLabel = params.phase;
+    const phaseLabel = humanizeEnumLabel(params.phase);
     const orderRef = params.orderNumber ?? params.orderId;
 
     const userTitle = "Tahap pembayaran tersedia";
@@ -171,17 +223,20 @@ export class PaymentService {
     orderNumber: string | null;
     targetUserId: number;
   }) => {
+    const awaitingProductionLabel = humanizeEnumLabel(
+      OrderStatus.AWAITING_PRODUCTION,
+    );
     const orderRef = params.orderNumber ?? params.orderId;
     const userTitle = "Pembayaran DP diterima";
     const userMessage = [
       `Pembayaran DP untuk order ${orderRef} telah diterima.`,
-      "Status order berubah menjadi AWAITING_PRODUCTION dan menunggu produksi dimulai.",
+      `Status order berubah menjadi ${awaitingProductionLabel} dan menunggu produksi dimulai.`,
     ].join(" ");
 
     const adminTitle = "Order menunggu produksi";
     const adminMessage = [
       `DP order ${orderRef} telah dibayar.`,
-      "Status order kini AWAITING_PRODUCTION dan siap dijadwalkan ke produksi.",
+      `Status order kini ${awaitingProductionLabel} dan siap dijadwalkan ke produksi.`,
     ].join(" ");
 
     const notificationResults = await Promise.allSettled([
@@ -394,12 +449,31 @@ export class PaymentService {
       orderBy: { createdAt: "asc" },
     });
     const paidPhases = paidPayments.map((item) => item.phase);
-    const expectedPhase = this.getNextUnpaidPhase(paidPhases);
+    const latestPaidPhase = this.getLatestPaidPhase(paidPhases);
+
+    if (order.currentPaymentPhase !== latestPaidPhase) {
+      await this.prisma.customOrder.update({
+        where: { id: orderId },
+        data: { currentPaymentPhase: latestPaidPhase },
+      });
+    }
+
+    const existingWaitingPayment = await this.prisma.payment.findFirst({
+      where: {
+        orderId,
+        status: PaymentStatus.WAITING_FOR_PAYMENT,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let payment = existingWaitingPayment;
+    let expectedPhase = payment?.phase ?? this.getNextPhase(latestPaidPhase);
+
     if (!expectedPhase) {
       throw new ApiError("All payment phases are already paid", 400);
     }
-    const phase = body.phase ?? expectedPhase;
 
+    const phase = body.phase ?? expectedPhase;
     if (phase !== expectedPhase) {
       throw new ApiError(
         `Invalid payment phase. Expected ${expectedPhase}, received ${phase}`,
@@ -407,76 +481,63 @@ export class PaymentService {
       );
     }
 
-    const latestProgress = await this.prisma.productionProgress.findFirst({
-      where: { orderId },
-      orderBy: { createdAt: "desc" },
-      select: { percentage: true },
-    });
-    const latestProgressPercentage = latestProgress?.percentage ?? 0;
-
-    if (phase === PaymentPhase.PROGRESS_1 && latestProgressPercentage < 50) {
-      throw new ApiError(
-        "PROGRESS_1 payment is available when production reaches at least 50%",
-        400,
-      );
-    }
-    if (phase === PaymentPhase.PROGRESS_2 && latestProgressPercentage < 75) {
-      throw new ApiError(
-        "PROGRESS_2 payment is available when production reaches at least 75%",
-        400,
-      );
-    }
-    if (phase === PaymentPhase.FINAL && latestProgressPercentage < 100) {
-      throw new ApiError(
-        "FINAL payment is available when production reaches 100%",
-        400,
-      );
-    }
-
-    if (
-      phase === PaymentPhase.PROGRESS_1 ||
-      phase === PaymentPhase.PROGRESS_2 ||
-      phase === PaymentPhase.FINAL
-    ) {
-      const minimumProgress = this.getMinimumProgressForPhase(phase);
-      if (latestProgressPercentage >= minimumProgress) {
-        await this.notifyPhaseAvailable({
-          orderId: order.id,
-          orderNumber: order.orderNumber ?? null,
-          phase,
-          progressPercentage: latestProgressPercentage,
-          targetUserId: order.userId,
-        });
-      }
-    }
-
-    let payment = await this.prisma.payment.findFirst({
-      where: {
-        orderId,
-        phase,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (
-      !payment ||
-      ["EXPIRED", "CANCELLED", "FAILED", "DENIED"].includes(payment.status)
-    ) {
-      const phaseAmount = this.getPhaseAmount(order.grandTotalPrice, phase);
-      if (phaseAmount <= 0) {
-        throw new ApiError("Calculated payment amount is invalid", 400);
-      }
-      payment = await this.prisma.payment.create({
-        data: {
-          orderId,
-          phase,
-          amount: phaseAmount,
-          status: "WAITING_FOR_PAYMENT",
+    if (!payment) {
+      const existingPhasePayment = await this.prisma.payment.findUnique({
+        where: {
+          orderId_phase: { orderId, phase },
         },
       });
+
+      if (existingPhasePayment) {
+        if (existingPhasePayment.status === PaymentStatus.PAID) {
+          throw new ApiError("Payment already paid", 400);
+        }
+
+        payment =
+          existingPhasePayment.status === PaymentStatus.WAITING_FOR_PAYMENT
+            ? existingPhasePayment
+            : await this.prisma.payment.update({
+                where: { id: existingPhasePayment.id },
+                data: {
+                  status: PaymentStatus.WAITING_FOR_PAYMENT,
+                  paidAt: null,
+                },
+              });
+      } else {
+        if (phase !== PaymentPhase.DP) {
+          throw new ApiError(
+            "No invoice available for this phase yet. Wait for production progress update.",
+            400,
+          );
+        }
+
+        const phaseAmount = this.getDpAmount(order.grandTotalPrice);
+        if (phaseAmount <= 0) {
+          throw new ApiError("Calculated payment amount is invalid", 400);
+        }
+        payment = await this.prisma.payment.create({
+          data: {
+            orderId,
+            phase,
+            amount: phaseAmount,
+            status: PaymentStatus.WAITING_FOR_PAYMENT,
+          },
+        });
+
+        if (phase === PaymentPhase.DP && order.currentPaymentPhase === null) {
+          await this.prisma.customOrder.update({
+            where: { id: orderId },
+            data: { currentPaymentPhase: PaymentPhase.DP },
+          });
+        }
+      }
     }
 
-    if (payment.status === "PAID") {
+    if (!payment) {
+      throw new ApiError("Payment could not be initialized", 500);
+    }
+
+    if (payment.status === PaymentStatus.PAID) {
       throw new ApiError("Payment already paid", 400);
     }
 
@@ -484,7 +545,18 @@ export class PaymentService {
     if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
       throw new ApiError("Payment amount is invalid", 400);
     }
-    const itemDetails = this.buildMidtransItemDetails({ order, grossAmount });
+    const phasePercentage = this.getPhasePercentage(
+      grossAmount,
+      order.grandTotalPrice,
+    );
+    const itemDetails = [
+      {
+        id: `PHASE-${payment.phase}`,
+        name: `${payment.phase} (${phasePercentage}%)`,
+        price: grossAmount,
+        quantity: 1,
+      },
+    ];
 
     try {
       const midtransResponse = await midtransService.createTransaction({
@@ -523,6 +595,8 @@ export class PaymentService {
         orderId: order.id,
         paymentId: updatedPayment.id,
         phase: updatedPayment.phase,
+        phasePercentage,
+        grandTotalPrice: order.grandTotalPrice,
         amount: updatedPayment.amount,
         paymentUrl: midtransResponse.redirect_url,
         token: midtransResponse.token,
@@ -638,30 +712,13 @@ export class PaymentService {
           },
           select: {
             phase: true,
-            amount: true,
           },
         });
 
         const paidPhaseSet = new Set(paidPayments.map((item) => item.phase));
-        const totalAmountPaid = paidPayments.reduce(
-          (sum, item) => sum + item.amount,
-          0,
+        const currentPaymentPhase = this.getLatestPaidPhase(
+          paidPayments.map((item) => item.phase),
         );
-        const remainingAmount = Math.max(
-          0,
-          payment.order.grandTotalPrice - totalAmountPaid,
-        );
-
-        let currentPaymentPhase: PaymentPhase = PaymentPhase.DP;
-        if (paidPhaseSet.has(PaymentPhase.FINAL)) {
-          currentPaymentPhase = PaymentPhase.FINAL;
-        } else if (paidPhaseSet.has(PaymentPhase.PROGRESS_2)) {
-          currentPaymentPhase = PaymentPhase.FINAL;
-        } else if (paidPhaseSet.has(PaymentPhase.PROGRESS_1)) {
-          currentPaymentPhase = PaymentPhase.PROGRESS_2;
-        } else if (paidPhaseSet.has(PaymentPhase.DP)) {
-          currentPaymentPhase = PaymentPhase.PROGRESS_1;
-        }
 
         if (
           paidPhaseSet.has(PaymentPhase.FINAL) &&
@@ -682,8 +739,6 @@ export class PaymentService {
           data: {
             status: resolvedOrderStatus,
             currentPaymentPhase,
-            totalAmountPaid,
-            remainingAmount,
           },
         });
       } else if (payment.phase === PaymentPhase.DP) {
