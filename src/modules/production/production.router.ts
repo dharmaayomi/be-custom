@@ -28,7 +28,6 @@ export class ProductionRouter {
     this.router.get(
       "/:orderId",
       this.jwtMiddleware.verifyToken(),
-      this.roleMiddleware.verifyRole(["ADMIN"]),
       this.productionController.getProductionProgress,
     );
   };
