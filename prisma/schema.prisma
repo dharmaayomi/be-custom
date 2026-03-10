@@ -289,22 +289,49 @@ model ShareableDesign {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  orderId     String
-  order       CustomOrder   @relation(fields: [orderId], references: [id])
-  phase       PaymentPhase
-  amount      Float
-  status      PaymentStatus @default(WAITING_FOR_PAYMENT)
-  paymentUrl  String?
-  externalId  String?
-  paymentType String?
-  paidAt      DateTime?
-  expiresAt   DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                         String           @id @default(cuid())
+  orderId                    String
+  order                      CustomOrder      @relation(fields: [orderId], references: [id])
+  phase                      PaymentPhase
+  progressPercentageSnapshot Int?
+  amount                     Float
+  status                     PaymentStatus    @default(WAITING_FOR_PAYMENT)
+  paymentUrl                 String?
+  externalId                 String?
+  paymentType                String?
+  midtransPaymentType        String?
+  midtransBank               String?
+  midtransReference          String?
+  paidAt                     DateTime?
+  expiresAt                  DateTime?
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  attempts                   PaymentAttempt[]
 
   @@unique([orderId, phase])
   @@map("payments")
+}
+
+model PaymentAttempt {
+  id                         String        @id @default(cuid())
+  paymentId                  String
+  payment                    Payment       @relation(fields: [paymentId], references: [id])
+  midtransOrderId            String        @unique
+  progressPercentageSnapshot Int?
+  status                     PaymentStatus @default(WAITING_FOR_PAYMENT)
+  paymentUrl                 String?
+  paymentType                String?
+  midtransPaymentType        String?
+  midtransBank               String?
+  midtransReference          String?
+  rawResponse                Json?
+  paidAt                     DateTime?
+  expiresAt                  DateTime?
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+
+  @@index([paymentId, createdAt])
+  @@map("payment_attempts")
 }
 
 model ProductionProgress {

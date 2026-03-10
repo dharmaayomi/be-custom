@@ -32,6 +32,16 @@ export class UserRouter {
       this.userController.getUserDisplay,
     );
     this.router.get(
+      "/:id/payments",
+      this.jwtMiddleware.verifyToken(),
+      this.userController.getUserPayments,
+    );
+    this.router.get(
+      "/payment-attempts",
+      this.jwtMiddleware.verifyToken(),
+      this.userController.getUserPaymentAttempts,
+    );
+    this.router.get(
       "/:id/address",
       this.jwtMiddleware.verifyToken(),
       this.userController.getAddresses,

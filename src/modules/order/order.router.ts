@@ -39,10 +39,10 @@ export class OrderRouter {
       this.orderController.getAdminOrders,
     );
     this.router.patch(
-      "/admin/:orderId/process",
+      "/admin/:orderId/start",
       this.jwtMiddleware.verifyToken(),
       this.roleMiddleware.verifyRole(["ADMIN"]),
-      this.orderController.processOrder,
+      this.orderController.startOrder,
     );
     this.router.get(
       "/admin/:orderId",

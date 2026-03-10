@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   OrderStatus,
   PaymentPhase,
@@ -6,18 +7,20 @@ import {
   PrismaClient,
   Role,
 } from "../../../generated/prisma/client.js";
-import { BASE_URL_FE } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
 import { humanizeEnumLabel } from "../../utils/formatters.js";
 import midtransService from "../../utils/midtrans.js";
 import { NotificationService } from "../notifications/notification.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
+import { PaymentChannel } from "./dto/createSnapPayment.dto.js";
 import { GetPaymentsQueryDTO } from "./dto/getPaymentsQuery.dto.js";
 
 type CreateSnapTransactionInput = {
   authUserId: number;
   orderId: string;
   phase?: PaymentPhase;
+  channel?: PaymentChannel;
+  corePayload?: Record<string, unknown>;
 };
 
 type MidtransWebhookInput = {
@@ -28,10 +31,22 @@ type MidtransWebhookInput = {
   transaction_status?: string;
   fraud_status?: string;
   payment_type?: string;
+  va_numbers?: Array<{ bank?: string; va_number?: string }>;
+  permata_va_number?: string;
+  bill_key?: string;
+  biller_code?: string;
+  qr_string?: string;
+  payment_code?: string;
+  acquirer?: string;
+};
+
+type PaymentAttemptMethodFields = {
+  midtransPaymentType?: string;
+  midtransBank?: string;
+  midtransReference?: string;
 };
 
 export class PaymentService {
-  private static readonly SNAP_EXPIRY_HOURS = 1;
   private static readonly PHASE_SEQUENCE: PaymentPhase[] = [
     PaymentPhase.DP,
     PaymentPhase.PROGRESS_1,
@@ -389,6 +404,168 @@ export class PaymentService {
     return items;
   };
 
+  private toMidtransPaymentType = (paymentType: string) => {
+    return `MIDTRANS_${paymentType.toUpperCase()}`;
+  };
+
+  private buildCoreChargePayload = (params: {
+    paymentId: string;
+    grossAmount: number;
+    fallbackItems: Array<{
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+    }>;
+    customer: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+    };
+    corePayload?: Record<string, unknown>;
+  }) => {
+    const sourcePayload = params.corePayload;
+    if (
+      !sourcePayload ||
+      typeof sourcePayload !== "object" ||
+      Array.isArray(sourcePayload)
+    ) {
+      throw new ApiError("corePayload is required when channel is CORE", 400);
+    }
+
+    const paymentType = sourcePayload.payment_type;
+    if (typeof paymentType !== "string" || paymentType.trim().length === 0) {
+      throw new ApiError("corePayload.payment_type is required", 400);
+    }
+
+    const payload: Record<string, unknown> = {
+      ...sourcePayload,
+      transaction_details: {
+        ...(typeof sourcePayload.transaction_details === "object" &&
+        sourcePayload.transaction_details &&
+        !Array.isArray(sourcePayload.transaction_details)
+          ? (sourcePayload.transaction_details as Record<string, unknown>)
+          : {}),
+        order_id: params.paymentId,
+        gross_amount: params.grossAmount,
+      },
+    };
+
+    if (!payload.customer_details) {
+      payload.customer_details = {
+        first_name: params.customer.firstName,
+        last_name: params.customer.lastName,
+        email: params.customer.email,
+        phone: params.customer.phone ?? "",
+      };
+    }
+
+    if (!payload.item_details) {
+      payload.item_details = params.fallbackItems;
+    }
+
+    return payload;
+  };
+
+  private normalizeCoreChargeResponse = (response: any) => {
+    const actions = Array.isArray(response?.actions)
+      ? response.actions.filter(
+          (action: any) =>
+            action &&
+            typeof action === "object" &&
+            typeof action.url === "string",
+        )
+      : [];
+
+    const primaryActionUrl =
+      actions.find((action: any) => action.name === "deeplink-redirect")?.url ??
+      actions[0]?.url ??
+      null;
+
+    const paymentUrl =
+      (typeof response?.redirect_url === "string" && response.redirect_url) ||
+      primaryActionUrl;
+
+    return {
+      paymentUrl,
+      vaNumbers: Array.isArray(response?.va_numbers) ? response.va_numbers : [],
+      permataVaNumber:
+        typeof response?.permata_va_number === "string"
+          ? response.permata_va_number
+          : null,
+      billKey:
+        typeof response?.bill_key === "string" ? response.bill_key : null,
+      billerCode:
+        typeof response?.biller_code === "string" ? response.biller_code : null,
+      qrString:
+        typeof response?.qr_string === "string" ? response.qr_string : null,
+      actions,
+      raw: response,
+    };
+  };
+
+  private deriveMidtransMethodFields = (payload: any) => {
+    const midtransPaymentType =
+      typeof payload?.payment_type === "string"
+        ? payload.payment_type
+        : undefined;
+
+    const vaNumbers = Array.isArray(payload?.va_numbers)
+      ? payload.va_numbers
+      : undefined;
+    const vaBank =
+      vaNumbers &&
+      vaNumbers.length > 0 &&
+      typeof vaNumbers[0]?.bank === "string"
+        ? vaNumbers[0].bank
+        : undefined;
+    const permataBank =
+      typeof payload?.permata_va_number === "string" ? "permata" : undefined;
+    const mandiriBank =
+      midtransPaymentType === "echannel" ||
+      (typeof payload?.bill_key === "string" &&
+        typeof payload?.biller_code === "string")
+        ? "mandiri"
+        : undefined;
+    const midtransBank = vaBank ?? permataBank ?? mandiriBank;
+
+    const referencePayload: Record<string, unknown> = {};
+    if (vaNumbers) referencePayload.va_numbers = vaNumbers;
+    if (typeof payload?.permata_va_number === "string") {
+      referencePayload.permata_va_number = payload.permata_va_number;
+    }
+    if (typeof payload?.bill_key === "string") {
+      referencePayload.bill_key = payload.bill_key;
+    }
+    if (typeof payload?.biller_code === "string") {
+      referencePayload.biller_code = payload.biller_code;
+    }
+    if (typeof payload?.qr_string === "string") {
+      referencePayload.qr_string = payload.qr_string;
+    }
+    if (typeof payload?.payment_code === "string") {
+      referencePayload.payment_code = payload.payment_code;
+    }
+    if (typeof payload?.acquirer === "string") {
+      referencePayload.acquirer = payload.acquirer;
+    }
+    if (Array.isArray(payload?.actions)) {
+      referencePayload.actions = payload.actions;
+    }
+
+    const midtransReference =
+      Object.keys(referencePayload).length > 0
+        ? JSON.stringify(referencePayload)
+        : undefined;
+
+    return {
+      midtransPaymentType,
+      midtransBank,
+      midtransReference,
+    } satisfies PaymentAttemptMethodFields;
+  };
+
   createSnapTransaction = async (body: CreateSnapTransactionInput) => {
     const orderId = body.orderId.trim();
 
@@ -476,8 +653,9 @@ export class PaymentService {
     const phase = body.phase ?? expectedPhase;
     if (phase !== expectedPhase) {
       throw new ApiError(
-        `Invalid payment phase. Expected ${expectedPhase}, received ${phase}`,
+        `Invalid payment phase. Expected ${expectedPhase}, received ${phase}. Retry without phase to use the next valid phase automatically.`,
         400,
+        "PAYMENT_PHASE_MISMATCH",
       );
     }
 
@@ -519,6 +697,7 @@ export class PaymentService {
           data: {
             orderId,
             phase,
+            progressPercentageSnapshot: null,
             amount: phaseAmount,
             status: PaymentStatus.WAITING_FOR_PAYMENT,
           },
@@ -559,47 +738,98 @@ export class PaymentService {
     ];
 
     try {
-      const midtransResponse = await midtransService.createTransaction({
-        orderId: payment.id,
+      const channel = body.channel ?? "CORE";
+      if (channel !== "CORE") {
+        throw new ApiError("SNAP payment is disabled. Use CORE channel.", 400);
+      }
+
+      const midtransOrderId = `mta-${randomUUID().replace(/-/g, "")}`;
+      const paymentAttempt = await this.prisma.paymentAttempt.create({
+        data: {
+          paymentId: payment.id,
+          midtransOrderId,
+          progressPercentageSnapshot: payment.progressPercentageSnapshot,
+          status: PaymentStatus.WAITING_FOR_PAYMENT,
+        },
+      });
+
+      const corePayload = this.buildCoreChargePayload({
+        paymentId: paymentAttempt.midtransOrderId,
         grossAmount,
-        items: itemDetails,
-        callbacks: BASE_URL_FE
-          ? {
-              finish: `${BASE_URL_FE}/dashboard/billing?orderId=${order.id}`,
-              unfinish: `${BASE_URL_FE}/checkout?orderId=${order.id}`,
-              error: `${BASE_URL_FE}/checkout?orderId=${order.id}`,
-            }
-          : undefined,
-        expiryHours: PaymentService.SNAP_EXPIRY_HOURS,
+        fallbackItems: itemDetails,
         customer: {
           firstName: order.user.firstName,
           lastName: order.user.lastName,
           email: order.user.email,
           phone: order.user.phoneNumber ?? "",
         },
+        corePayload: body.corePayload,
       });
+
+      const coreResponse = await midtransService.chargeTransaction(corePayload);
+      const normalized = this.normalizeCoreChargeResponse(coreResponse);
+      const methodFields = this.deriveMidtransMethodFields(coreResponse);
+      const paymentType =
+        typeof coreResponse?.payment_type === "string"
+          ? coreResponse.payment_type
+          : "core_api";
+      const expiryTime =
+        typeof coreResponse?.expiry_time === "string"
+          ? new Date(coreResponse.expiry_time)
+          : null;
 
       const updatedPayment = await this.prisma.payment.update({
         where: { id: payment.id },
         data: {
           externalId: payment.id,
-          paymentUrl: midtransResponse.redirect_url,
-          paymentType: "MIDTRANS_SNAP",
-          expiresAt: new Date(
-            Date.now() + PaymentService.SNAP_EXPIRY_HOURS * 60 * 60 * 1000,
-          ),
+          paymentUrl: normalized.paymentUrl,
+          paymentType: this.toMidtransPaymentType(paymentType),
+          midtransPaymentType: methodFields.midtransPaymentType,
+          midtransBank: methodFields.midtransBank,
+          midtransReference: methodFields.midtransReference,
+          expiresAt:
+            expiryTime && !Number.isNaN(expiryTime.getTime())
+              ? expiryTime
+              : null,
+        },
+      });
+
+      await this.prisma.paymentAttempt.update({
+        where: { id: paymentAttempt.id },
+        data: {
+          status: PaymentStatus.WAITING_FOR_PAYMENT,
+          paymentUrl: normalized.paymentUrl,
+          paymentType: this.toMidtransPaymentType(paymentType),
+          midtransPaymentType: methodFields.midtransPaymentType,
+          midtransBank: methodFields.midtransBank,
+          midtransReference: methodFields.midtransReference,
+          expiresAt:
+            expiryTime && !Number.isNaN(expiryTime.getTime())
+              ? expiryTime
+              : null,
+          rawResponse: coreResponse,
         },
       });
 
       return {
         orderId: order.id,
         paymentId: updatedPayment.id,
+        paymentAttemptId: paymentAttempt.id,
+        midtransOrderId: paymentAttempt.midtransOrderId,
         phase: updatedPayment.phase,
         phasePercentage,
         grandTotalPrice: order.grandTotalPrice,
         amount: updatedPayment.amount,
-        paymentUrl: midtransResponse.redirect_url,
-        token: midtransResponse.token,
+        channel: "CORE",
+        paymentType,
+        paymentUrl: normalized.paymentUrl,
+        vaNumbers: normalized.vaNumbers,
+        permataVaNumber: normalized.permataVaNumber,
+        billKey: normalized.billKey,
+        billerCode: normalized.billerCode,
+        qrString: normalized.qrString,
+        actions: normalized.actions,
+        raw: normalized.raw,
       };
     } catch (error: any) {
       const message =
@@ -641,14 +871,19 @@ export class PaymentService {
     }
 
     const transactionResult = await this.prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.findUnique({
-        where: { id: orderId },
-        include: { order: true },
+      const paymentAttempt = await tx.paymentAttempt.findUnique({
+        where: { midtransOrderId: orderId },
+        include: {
+          payment: {
+            include: { order: true },
+          },
+        },
       });
 
-      if (!payment) {
+      if (!paymentAttempt) {
         return { received: true, ignored: true };
       }
+      const payment = paymentAttempt.payment;
 
       const grossAmountNumber = Number(grossAmount);
       const expectedGrossAmount = Math.ceil(payment.amount);
@@ -663,6 +898,43 @@ export class PaymentService {
         transactionStatus,
         fraudStatus,
       );
+      const methodFields = this.deriveMidtransMethodFields(payload);
+
+      if (paymentAttempt.status === PaymentStatus.PAID) {
+        return {
+          received: true,
+          ignored: true,
+          paymentId: paymentAttempt.paymentId,
+          paymentAttemptId: paymentAttempt.id,
+          paymentStatus: paymentAttempt.status,
+          orderId: payment.orderId,
+          orderStatus: payment.order.status,
+        };
+      }
+
+      const updatedAttempt = await tx.paymentAttempt.update({
+        where: { id: paymentAttempt.id },
+        data: {
+          status: nextPaymentStatus,
+          paymentType: payload.payment_type
+            ? this.toMidtransPaymentType(payload.payment_type)
+            : paymentAttempt.paymentType,
+          midtransPaymentType:
+            methodFields.midtransPaymentType ??
+            paymentAttempt.midtransPaymentType ??
+            null,
+          midtransBank:
+            methodFields.midtransBank ?? paymentAttempt.midtransBank ?? null,
+          midtransReference:
+            methodFields.midtransReference ??
+            paymentAttempt.midtransReference ??
+            null,
+          paidAt:
+            nextPaymentStatus === PaymentStatus.PAID
+              ? (paymentAttempt.paidAt ?? new Date())
+              : paymentAttempt.paidAt,
+        },
+      });
 
       // Keep paid payment immutable against duplicate/out-of-order webhook retries.
       if (payment.status === PaymentStatus.PAID) {
@@ -670,10 +942,35 @@ export class PaymentService {
           received: true,
           ignored: true,
           paymentId: payment.id,
+          paymentAttemptId: updatedAttempt.id,
           paymentStatus: payment.status,
           orderId: payment.orderId,
           orderStatus: payment.order.status,
         };
+      }
+
+      const updateData: Prisma.PaymentUpdateManyMutationInput = {
+        status: nextPaymentStatus,
+        paymentType: payload.payment_type
+          ? this.toMidtransPaymentType(payload.payment_type)
+          : payment.paymentType,
+        paidAt:
+          nextPaymentStatus === PaymentStatus.PAID
+            ? (payment.paidAt ?? new Date())
+            : payment.paidAt,
+      };
+
+      if (methodFields.midtransPaymentType) {
+        updateData.midtransPaymentType = methodFields.midtransPaymentType;
+      }
+      if (methodFields.midtransBank) {
+        updateData.midtransBank = methodFields.midtransBank;
+      }
+      if (methodFields.midtransReference) {
+        updateData.midtransReference = methodFields.midtransReference;
+      }
+      if (updatedAttempt.expiresAt) {
+        updateData.expiresAt = updatedAttempt.expiresAt;
       }
 
       const updatePaymentResult = await tx.payment.updateMany({
@@ -681,14 +978,7 @@ export class PaymentService {
           id: payment.id,
           status: { not: PaymentStatus.PAID },
         },
-        data: {
-          status: nextPaymentStatus,
-          paymentType: payload.payment_type ?? payment.paymentType,
-          paidAt:
-            nextPaymentStatus === PaymentStatus.PAID
-              ? (payment.paidAt ?? new Date())
-              : payment.paidAt,
-        },
+        data: updateData,
       });
 
       if (updatePaymentResult.count === 0) {
@@ -696,6 +986,7 @@ export class PaymentService {
           received: true,
           ignored: true,
           paymentId: payment.id,
+          paymentAttemptId: updatedAttempt.id,
           paymentStatus: payment.status,
           orderId: payment.orderId,
           orderStatus: payment.order.status,
@@ -767,6 +1058,7 @@ export class PaymentService {
       return {
         received: true,
         paymentId: payment.id,
+        paymentAttemptId: updatedAttempt.id,
         paymentStatus: nextPaymentStatus,
         orderId: payment.orderId,
         orderStatus: resolvedOrderStatus,
@@ -808,6 +1100,9 @@ export class PaymentService {
       },
       include: {
         order: true,
+        attempts: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -867,6 +1162,10 @@ export class PaymentService {
         } as Prisma.PaymentOrderByWithRelationInput,
         include: {
           order: true,
+          attempts: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
         },
       }),
     ]);
@@ -878,5 +1177,57 @@ export class PaymentService {
     });
 
     return { data, meta };
+  };
+
+  getPaymentAttempts = async (authUserId: number, paymentId: string) => {
+    const normalizedPaymentId = paymentId.trim();
+    if (!normalizedPaymentId) {
+      throw new ApiError("paymentId is required", 400);
+    }
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id: normalizedPaymentId,
+        order: {
+          userId: authUserId,
+          deletedAt: null,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!payment) {
+      throw new ApiError("Payment not found", 404);
+    }
+
+    return this.prisma.paymentAttempt.findMany({
+      where: { paymentId: normalizedPaymentId },
+      orderBy: { createdAt: "desc" },
+    });
+  };
+
+  getPaymentAttempt = async (authUserId: number, attemptId: string) => {
+    const normalizedAttemptId = attemptId.trim();
+    if (!normalizedAttemptId) {
+      throw new ApiError("attemptId is required", 400);
+    }
+
+    const attempt = await this.prisma.paymentAttempt.findFirst({
+      where: {
+        id: normalizedAttemptId,
+        payment: {
+          order: {
+            userId: authUserId,
+            deletedAt: null,
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      throw new ApiError("Payment attempt not found", 404);
+    }
+
+    return attempt;
   };
 }

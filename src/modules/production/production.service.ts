@@ -5,19 +5,15 @@ import {
   PrismaClient,
   Role,
 } from "../../../generated/prisma/client.js";
-import { BASE_URL_FE } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
   formatIDRCurrency,
   humanizeEnumLabel,
 } from "../../utils/formatters.js";
-import midtransService from "../../utils/midtrans.js";
 import { NotificationService } from "../notifications/notification.service.js";
 import { CreateProductionProgressDTO } from "./dto/createProductionProgress.dto.js";
 
 export class ProductionService {
-  private static readonly SNAP_EXPIRY_HOURS = 1;
-
   constructor(
     private prisma: PrismaClient,
     private notificationService: NotificationService,
@@ -231,6 +227,7 @@ export class ProductionService {
       let paymentCreated = null as {
         id: string;
         phase: PaymentPhase;
+        progressPercentageSnapshot: number | null;
         amount: number;
         status: PaymentStatus;
       } | null;
@@ -245,6 +242,7 @@ export class ProductionService {
         select: {
           id: true,
           phase: true,
+          progressPercentageSnapshot: true,
           amount: true,
           status: true,
         },
@@ -255,12 +253,14 @@ export class ProductionService {
           data: {
             orderId,
             phase: nextPhase,
+            progressPercentageSnapshot: body.percentage,
             amount: remainingToBill,
             status: PaymentStatus.WAITING_FOR_PAYMENT,
           },
           select: {
             id: true,
             phase: true,
+            progressPercentageSnapshot: true,
             amount: true,
             status: true,
           },
@@ -269,6 +269,7 @@ export class ProductionService {
         paymentCreated = await tx.payment.update({
           where: { id: existingPhasePayment.id },
           data: {
+            progressPercentageSnapshot: body.percentage,
             amount: remainingToBill,
             status: PaymentStatus.WAITING_FOR_PAYMENT,
             paidAt: null,
@@ -276,6 +277,7 @@ export class ProductionService {
           select: {
             id: true,
             phase: true,
+            progressPercentageSnapshot: true,
             amount: true,
             status: true,
           },
@@ -319,90 +321,7 @@ export class ProductionService {
       },
     });
     const orderRef = order?.orderNumber ?? orderId;
-    let paymentCreated = result.paymentCreated as
-      | ({
-          id: string;
-          phase: PaymentPhase;
-          amount: number;
-          status: PaymentStatus;
-        } & {
-          paymentUrl?: string | null;
-          token?: string;
-          expiresAt?: Date | null;
-        })
-      | null;
-
-    if (paymentCreated && order) {
-      const grossAmount = Math.ceil(paymentCreated.amount);
-      if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
-        throw new ApiError("Payment amount is invalid", 400);
-      }
-
-      const phasePercentage =
-        order.grandTotalPrice > 0
-          ? Number(((grossAmount / order.grandTotalPrice) * 100).toFixed(2))
-          : 0;
-
-      try {
-        const midtransResponse = await midtransService.createTransaction({
-          orderId: paymentCreated.id,
-          grossAmount,
-          items: [
-            {
-              id: `PHASE-${paymentCreated.phase}`,
-              name: `${paymentCreated.phase} (${phasePercentage}%)`,
-              price: grossAmount,
-              quantity: 1,
-            },
-          ],
-          callbacks: BASE_URL_FE
-            ? {
-                finish: `${BASE_URL_FE}/dashboard/billing?orderId=${order.id}`,
-                unfinish: `${BASE_URL_FE}/checkout?orderId=${order.id}`,
-                error: `${BASE_URL_FE}/checkout?orderId=${order.id}`,
-              }
-            : undefined,
-          expiryHours: ProductionService.SNAP_EXPIRY_HOURS,
-          customer: {
-            firstName: order.user.firstName,
-            lastName: order.user.lastName,
-            email: order.user.email,
-            phone: order.user.phoneNumber ?? "",
-          },
-        });
-
-        const updatedPayment = await this.prisma.payment.update({
-          where: { id: paymentCreated.id },
-          data: {
-            externalId: paymentCreated.id,
-            paymentUrl: midtransResponse.redirect_url,
-            paymentType: "MIDTRANS_SNAP",
-            expiresAt: new Date(
-              Date.now() + ProductionService.SNAP_EXPIRY_HOURS * 60 * 60 * 1000,
-            ),
-          },
-          select: {
-            id: true,
-            phase: true,
-            amount: true,
-            status: true,
-            paymentUrl: true,
-            expiresAt: true,
-          },
-        });
-
-        paymentCreated = {
-          ...updatedPayment,
-          token: midtransResponse.token,
-        };
-      } catch (error: any) {
-        const message =
-          typeof error?.message === "string"
-            ? error.message
-            : "Failed to create Midtrans transaction";
-        throw new ApiError(message, 502);
-      }
-    }
+    const paymentCreated = result.paymentCreated;
 
     if (order) {
       const paymentPhaseLabel = paymentCreated

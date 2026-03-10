@@ -68,10 +68,10 @@ export class OrderController {
     }
   };
 
-  processOrder = async (req: Request, res: Response, next: NextFunction) => {
+  startOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orderId = req.params.orderId;
-      const result = await this.orderService.processOrder(orderId);
+      const result = await this.orderService.startOrder(orderId);
       res.status(200).send(result);
     } catch (error) {
       next(error);

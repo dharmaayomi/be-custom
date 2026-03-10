@@ -729,7 +729,35 @@ export class OrderService {
     }
     const order = await this.prisma.customOrder.findFirst({
       where: { id: orderId, userId: authUserId, deletedAt: null },
-      include: { items: { include: { components: true } } },
+      include: {
+        items: { include: { components: true } },
+        payments: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            phase: true,
+            progressPercentageSnapshot: true,
+            status: true,
+            amount: true,
+            paymentType: true,
+            midtransPaymentType: true,
+            midtransBank: true,
+            midtransReference: true,
+            paymentUrl: true,
+            paidAt: true,
+            expiresAt: true,
+            createdAt: true,
+            updatedAt: true,
+            attempts: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!order) {
       throw new ApiError("We couldn't find your order", 404);
@@ -760,13 +788,13 @@ export class OrderService {
         userId: authUserId,
         ...(status ? { status: status as OrderStatus } : {}),
       },
-      include: { items: { include: { components: true } } },
     });
-    return orders;
+    return orders.map(({ designSnapShot: _designSnapShot, ...order }) => order);
   };
 
   getAdminOrders = async (query: GetAdminOrdersQueryDTO) => {
-    const { page, perPage, sortBy, orderBy, status, dateFrom, dateTo } = query;
+    const { page, perPage, sortBy, orderBy, status, dateFrom, dateTo, search } =
+      query;
 
     if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
       throw new ApiError("dateFrom cannot be greater than dateTo", 400);
@@ -787,9 +815,27 @@ export class OrderService {
     }
 
     const skip = (page - 1) * perPage;
+    const normalizedSearch = search?.trim();
     const where: Prisma.CustomOrderWhereInput = {
       deletedAt: null,
       ...(status ? { status } : {}),
+      ...(normalizedSearch
+        ? {
+            user: {
+              OR: [
+                {
+                  firstName: {
+                    contains: normalizedSearch,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  lastName: { contains: normalizedSearch, mode: "insensitive" },
+                },
+              ],
+            },
+          }
+        : {}),
       ...(dateFrom || dateTo
         ? {
             createdAt: {
@@ -818,14 +864,44 @@ export class OrderService {
               email: true,
             },
           },
-          items: {
-            include: {
-              components: true,
-            },
-          },
         },
       }),
     ]);
+
+    const orderIds = data.map((order) => order.id);
+    const paidSummaries =
+      orderIds.length > 0
+        ? await this.prisma.payment.groupBy({
+            by: ["orderId"],
+            where: {
+              orderId: { in: orderIds },
+              status: PaymentStatus.PAID,
+            },
+            _sum: {
+              amount: true,
+            },
+          })
+        : [];
+
+    const totalPaidByOrderId = new Map(
+      paidSummaries.map((summary) => [
+        summary.orderId,
+        summary._sum.amount ?? 0,
+      ]),
+    );
+
+    const dataWithPaymentSummary = data.map((order) => {
+      const { designSnapShot: _designSnapShot, ...orderWithoutDesignSnapshot } =
+        order;
+      const totalPaid = totalPaidByOrderId.get(order.id) ?? 0;
+      const remaining = Math.max(0, order.grandTotalPrice - totalPaid);
+
+      return {
+        ...orderWithoutDesignSnapshot,
+        totalPaid,
+        remaining,
+      };
+    });
 
     const meta = this.paginationService.generateMeta({
       page,
@@ -833,7 +909,7 @@ export class OrderService {
       count,
     });
 
-    return { data, meta };
+    return { data: dataWithPaymentSummary, meta };
   };
 
   getAdminOrder = async (orderId: string) => {
@@ -859,23 +935,47 @@ export class OrderService {
             },
           },
         },
+        payments: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            phase: true,
+            progressPercentageSnapshot: true,
+            status: true,
+            amount: true,
+            paymentType: true,
+            midtransPaymentType: true,
+            midtransBank: true,
+            midtransReference: true,
+            paymentUrl: true,
+            paidAt: true,
+            expiresAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
     if (!order) {
       throw new ApiError("We couldn't find your order", 404);
     }
-    const paymentSummary = await this.getOrderPaymentSummary(
-      order.id,
-      order.grandTotalPrice,
-    );
+    const totalPaid = order.payments
+      .filter((payment) => payment.status === PaymentStatus.PAID)
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const remaining = Math.max(0, order.grandTotalPrice - totalPaid);
+    const currentPaymentStatus = order.payments[0]?.status ?? null;
 
     return {
       ...order,
-      ...paymentSummary,
+      totalPaid,
+      remaining,
+      currentPaymentStatus,
     };
   };
 
-  processOrder = async (orderId: string) => {
+  startOrder = async (orderId: string) => {
     const order = await this.prisma.customOrder.findFirst({
       where: { id: orderId, deletedAt: null },
       select: {

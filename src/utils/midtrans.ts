@@ -32,6 +32,7 @@ type CreateSnapTransactionParams = {
 
 class MidtransService {
   private snap: midtransClient.Snap;
+  private core: midtransClient.CoreApi;
 
   constructor() {
     this.snap = new midtransClient.Snap({
@@ -39,7 +40,20 @@ class MidtransService {
       serverKey: MIDTRANS_SERVER_KEY,
       clientKey: MIDTRANS_CLIENT_KEY,
     });
+    this.core = new midtransClient.CoreApi({
+      isProduction: MIDTRANS_IS_PRODUCTION,
+      serverKey: MIDTRANS_SERVER_KEY,
+      clientKey: MIDTRANS_CLIENT_KEY,
+    });
   }
+
+  chargeTransaction = async (payload: any) => {
+    return this.core.charge(payload);
+  };
+
+  checkStatus = async (orderId: string) => {
+    return (this.core as any).transaction.status(orderId);
+  };
 
   createTransaction = async (params: CreateSnapTransactionParams) => {
     const expiryHours = params.expiryHours ?? 24;

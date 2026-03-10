@@ -19,6 +19,9 @@ import { DesignController } from "./modules/design/design.controller.js";
 import { DesignRouter } from "./modules/design/design.router.js";
 import { DesignService } from "./modules/design/design.service.js";
 import { MailService } from "./modules/mail/mail.service.js";
+import { MidtransCoreController } from "./modules/midtrans-core/midtransCore.controller.js";
+import { MidtransCoreRouter } from "./modules/midtrans-core/midtransCore.router.js";
+import { MidtransCoreService } from "./modules/midtrans-core/midtransCore.service.js";
 import { NotificationController } from "./modules/notifications/notification.controller.js";
 import { NotificationRouter } from "./modules/notifications/notification.router.js";
 import { NotificationService } from "./modules/notifications/notification.service.js";
@@ -73,6 +76,7 @@ export class App {
     const designService = new DesignService(prismaClient, cloudinaryService);
     const productService = new ProductService(prismaClient, cloudinaryService);
     const notificationService = new NotificationService(prismaClient);
+    const midtransCoreService = new MidtransCoreService();
     const orderService = new OrderService(
       prismaClient,
       mailService,
@@ -103,6 +107,9 @@ export class App {
     const productionController = new ProductionController(productionService);
     const notificationController = new NotificationController(
       notificationService,
+    );
+    const midtransCoreController = new MidtransCoreController(
+      midtransCoreService,
     );
 
     // middlewares
@@ -158,6 +165,11 @@ export class App {
       jwtMiddleware,
       roleMiddleware,
     );
+    const midtransCoreRouter = new MidtransCoreRouter(
+      midtransCoreController,
+      validationMiddleware,
+      jwtMiddleware,
+    );
 
     // routes
     // this.app.use("/samples", sampleRouter.getRouter());
@@ -169,6 +181,7 @@ export class App {
     this.app.use("/payment", paymentRouter.getRouter());
     this.app.use("/production", productionRouter.getRouter());
     this.app.use("/notification", notificationRouter.getRouter());
+    this.app.use("/midtrans-core", midtransCoreRouter.getRouter());
   }
 
   private handleError() {
