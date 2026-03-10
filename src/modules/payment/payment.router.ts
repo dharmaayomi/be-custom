@@ -37,6 +37,18 @@ export class PaymentRouter {
     );
 
     this.router.get(
+      "/:paymentId/attempts",
+      this.jwtMiddleware.verifyToken(),
+      this.paymentController.getPaymentAttempts,
+    );
+
+    this.router.get(
+      "/:attemptId/detail-attempt",
+      this.jwtMiddleware.verifyToken(),
+      this.paymentController.getPaymentAttempt,
+    );
+
+    this.router.get(
       "/:paymentId",
       this.jwtMiddleware.verifyToken(),
       this.paymentController.getPayment,

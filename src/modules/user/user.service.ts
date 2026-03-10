@@ -45,6 +45,105 @@ export class UserService {
     return user;
   };
 
+  getUserPayments = async (authUserId: number) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      select: {
+        id: true,
+        accountStatus: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
+    return this.prisma.payment.findMany({
+      where: {
+        order: {
+          userId: authUserId,
+          deletedAt: null,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        orderId: true,
+        phase: true,
+        progressPercentageSnapshot: true,
+        status: true,
+        amount: true,
+        paymentType: true,
+        midtransPaymentType: true,
+        midtransBank: true,
+        midtransReference: true,
+        paymentUrl: true,
+        paidAt: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            grandTotalPrice: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+  };
+
+  getUserPaymentAttempts = async (authUserId: number) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      select: {
+        id: true,
+        accountStatus: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
+    return this.prisma.paymentAttempt.findMany({
+      where: {
+        payment: {
+          order: {
+            userId: authUserId,
+            deletedAt: null,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        payment: {
+          select: {
+            id: true,
+            orderId: true,
+            phase: true,
+            progressPercentageSnapshot: true,
+            amount: true,
+            status: true,
+            order: {
+              select: {
+                id: true,
+                orderNumber: true,
+                status: true,
+                grandTotalPrice: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  };
+
   private resolveKomerceSubdistrictId = async (
     subdistrict: string,
     city: string,

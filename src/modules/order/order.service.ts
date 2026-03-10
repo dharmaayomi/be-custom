@@ -729,7 +729,35 @@ export class OrderService {
     }
     const order = await this.prisma.customOrder.findFirst({
       where: { id: orderId, userId: authUserId, deletedAt: null },
-      include: { items: { include: { components: true } } },
+      include: {
+        items: { include: { components: true } },
+        payments: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            phase: true,
+            progressPercentageSnapshot: true,
+            status: true,
+            amount: true,
+            paymentType: true,
+            midtransPaymentType: true,
+            midtransBank: true,
+            midtransReference: true,
+            paymentUrl: true,
+            paidAt: true,
+            expiresAt: true,
+            createdAt: true,
+            updatedAt: true,
+            attempts: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!order) {
       throw new ApiError("We couldn't find your order", 404);
@@ -760,9 +788,8 @@ export class OrderService {
         userId: authUserId,
         ...(status ? { status: status as OrderStatus } : {}),
       },
-      include: { items: { include: { components: true } } },
     });
-    return orders;
+    return orders.map(({ designSnapShot: _designSnapShot, ...order }) => order);
   };
 
   getAdminOrders = async (query: GetAdminOrdersQueryDTO) => {
@@ -837,11 +864,6 @@ export class OrderService {
               email: true,
             },
           },
-          items: {
-            include: {
-              components: true,
-            },
-          },
         },
       }),
     ]);
@@ -869,11 +891,13 @@ export class OrderService {
     );
 
     const dataWithPaymentSummary = data.map((order) => {
+      const { designSnapShot: _designSnapShot, ...orderWithoutDesignSnapshot } =
+        order;
       const totalPaid = totalPaidByOrderId.get(order.id) ?? 0;
       const remaining = Math.max(0, order.grandTotalPrice - totalPaid);
 
       return {
-        ...order,
+        ...orderWithoutDesignSnapshot,
         totalPaid,
         remaining,
       };
@@ -918,9 +942,13 @@ export class OrderService {
           select: {
             id: true,
             phase: true,
+            progressPercentageSnapshot: true,
             status: true,
             amount: true,
             paymentType: true,
+            midtransPaymentType: true,
+            midtransBank: true,
+            midtransReference: true,
             paymentUrl: true,
             paidAt: true,
             expiresAt: true,

@@ -20,6 +20,8 @@ export class PaymentController {
         authUserId,
         orderId: body.orderId,
         phase: body.phase,
+        channel: body.channel,
+        corePayload: body.corePayload,
       });
 
       res.status(201).send(result);
@@ -48,6 +50,42 @@ export class PaymentController {
       const result = await this.paymentService.getPayment(
         authUserId,
         paymentId,
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPaymentAttempts = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const paymentId = req.params.paymentId;
+      const result = await this.paymentService.getPaymentAttempts(
+        authUserId,
+        paymentId,
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPaymentAttempt = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const attemptId = req.params.attemptId;
+      const result = await this.paymentService.getPaymentAttempt(
+        authUserId,
+        attemptId,
       );
       res.status(200).send(result);
     } catch (error) {

@@ -24,6 +24,22 @@ export class UserController {
     res.status(200).send(result);
   };
 
+  getUserPayments = async (req: Request, res: Response, next: NextFunction) => {
+    const authUserId = Number(res.locals.user.id);
+    const result = await this.userService.getUserPayments(authUserId);
+    res.status(200).send(result);
+  };
+
+  getUserPaymentAttempts = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authUserId = Number(res.locals.user.id);
+    const result = await this.userService.getUserPaymentAttempts(authUserId);
+    res.status(200).send(result);
+  };
+
   createAddress = async (req: Request, res: Response, next: NextFunction) => {
     const authUserId = Number(res.locals.user.id);
     const body = req.body as CreateAddressDTO;
