@@ -16,8 +16,13 @@ import {
   humanizeEnumLabel,
 } from "../../utils/formatters.js";
 import {
+  JNE_API_KEY,
+  JNE_ORIGIN_CODE,
+  JNE_USERNAME,
   RAJAONGKIR_API_COST_KEY,
   RAJAONGKIR_ORIGIN_SUBDISTRICT_ID,
+  STORE_DELIVERY_BASE_FEE,
+  STORE_DELIVERY_RATE_PER_KM,
   STORE_LATITUDE,
   STORE_LONGITUDE,
 } from "../../config/env.js";
@@ -67,8 +72,13 @@ export class OrderService {
   private readonly DEFAULT_COURIER = "jne";
   private readonly RAJAONGKIR_DOMESTIC_COST_URL =
     "https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost";
+  private readonly DEFAULT_JNE_SERVICE_DISPLAY = "JTR";
+  private readonly JNE_PRICE_URL_DEV =
+    "https://apiv2.jne.co.id:10202/tracing/api/pricedev";
+  private readonly JNE_USER_AGENT = "node.js";
   private paginationService = new PaginationService();
-
+  private readonly JNE_ORIGIN_URL_DEV =
+    "https://apiv2.jne.co.id:10202/insert/getorigin";
   constructor(
     private prisma: PrismaClient,
     private mailService: MailService,
@@ -343,6 +353,90 @@ export class OrderService {
     return cost;
   };
 
+  private parsePriceValue = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return null;
+  };
+
+  private getJneJtrCostValue = (payload: any): number | null => {
+    const prices: any[] = Array.isArray(payload?.price) ? payload.price : [];
+    const exactJtr = prices.find(
+      (item) =>
+        String(item?.service_display ?? "").toUpperCase() ===
+          this.DEFAULT_JNE_SERVICE_DISPLAY ||
+        String(item?.service_code ?? "").toUpperCase() ===
+          this.DEFAULT_JNE_SERVICE_DISPLAY,
+    );
+
+    const fallbackJtr = prices.find((item) =>
+      String(item?.service_display ?? item?.service_code ?? "")
+        .toUpperCase()
+        .startsWith(this.DEFAULT_JNE_SERVICE_DISPLAY),
+    );
+
+    return this.parsePriceValue((exactJtr ?? fallbackJtr)?.price);
+  };
+
+  private calculateJneDeliveryFee = async (
+    destinationCode: string,
+    weightKg: number,
+  ) => {
+    if (!JNE_USERNAME || !JNE_API_KEY || !JNE_ORIGIN_CODE) {
+      throw new ApiError("JNE delivery configuration is incomplete", 500);
+    }
+
+    const billableWeightKg = Math.max(1, Math.ceil(weightKg));
+
+    const response = await fetch(this.JNE_PRICE_URL_DEV, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+        "User-Agent": this.JNE_USER_AGENT,
+      },
+      body: new URLSearchParams({
+        username: JNE_USERNAME,
+        api_key: JNE_API_KEY,
+        from: JNE_ORIGIN_CODE,
+        thru: destinationCode,
+        weight: billableWeightKg.toString(),
+      }),
+    });
+
+    const rawBody = await response.text();
+    let responsePayload: unknown = null;
+    if (rawBody) {
+      try {
+        responsePayload = JSON.parse(rawBody);
+      } catch {
+        responsePayload = null;
+      }
+    }
+
+    if (!response.ok) {
+      console.error("[JNE]", response.status, responsePayload ?? rawBody);
+      throw new ApiError("Failed to fetch delivery fee from JNE", 502);
+    }
+
+    const cost = this.getJneJtrCostValue(responsePayload);
+
+    if (cost === null || cost < 0) {
+      throw new ApiError("JNE returned invalid JTR delivery fee", 502);
+    }
+
+    return cost;
+  };
+
   private calculateDeliveryDistanceKm = (
     destinationLat?: number | null,
     destinationLng?: number | null,
@@ -373,6 +467,65 @@ export class OrderService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return Math.round(earthRadiusKm * c * 100) / 100;
+  };
+
+  private isJabodetabekAddress = (address: {
+    city?: string | null;
+    district?: string | null;
+    province?: string | null;
+  }) => {
+    const normalizedLocation = [
+      address.city ?? "",
+      address.district ?? "",
+      address.province ?? "",
+    ]
+      .join(" ")
+      .normalize("NFKD")
+      .replace(/[^\w\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+    return ["jakarta", "bogor", "depok", "tangerang", "bekasi"].some(
+      (keyword) => normalizedLocation.includes(keyword),
+    );
+  };
+
+  private calculateStoreDeliveryFee = (distanceKm: number) => {
+    if (
+      typeof STORE_DELIVERY_RATE_PER_KM !== "number" ||
+      Number.isNaN(STORE_DELIVERY_RATE_PER_KM)
+    ) {
+      throw new ApiError("STORE_DELIVERY_RATE_PER_KM is not configured", 500);
+    }
+
+    if (distanceKm <= 1) {
+      return STORE_DELIVERY_RATE_PER_KM;
+    }
+
+    if (
+      typeof STORE_DELIVERY_BASE_FEE !== "number" ||
+      Number.isNaN(STORE_DELIVERY_BASE_FEE)
+    ) {
+      throw new ApiError("STORE_DELIVERY_BASE_FEE is not configured", 500);
+    }
+
+    return (
+      STORE_DELIVERY_BASE_FEE +
+      Math.ceil(distanceKm) * STORE_DELIVERY_RATE_PER_KM
+    );
+  };
+
+  private getDeliveryLabel = (deliveryType: DeliveryType) => {
+    switch (deliveryType) {
+      case DeliveryType.DELIVERY:
+        return "Delivery";
+      case DeliveryType.STORE_DELIVERY:
+        return "Store Delivery";
+      case DeliveryType.PICKUP:
+      default:
+        return "Pickup";
+    }
   };
 
   createCustomOrder = async (authUserId: number, body: CreateOrderDTO) => {
@@ -430,7 +583,7 @@ export class OrderService {
     }
 
     const address =
-      deliveryType === DeliveryType.DELIVERY
+      deliveryType !== DeliveryType.PICKUP
         ? await this.prisma.address.findFirst({
             where: {
               id: addressId,
@@ -439,22 +592,32 @@ export class OrderService {
           })
         : null;
 
-    if (deliveryType === DeliveryType.DELIVERY && !address) {
+    if (deliveryType !== DeliveryType.PICKUP && !address) {
       throw new ApiError("Shipping address not found", 404);
     }
 
     if (
       deliveryType === DeliveryType.DELIVERY &&
-      (!address || !address.komerceSubdistrictId)
+      (!address || !address.jneCityCode)
     ) {
       throw new ApiError(
-        "Address komerceSubdistrictId is required for delivery calculation. Please re-save this address.",
+        "Address jneCityCode is required for JNE delivery calculation. Please re-save this address.",
+        400,
+      );
+    }
+
+    if (
+      deliveryType === DeliveryType.STORE_DELIVERY &&
+      !this.isJabodetabekAddress(address!)
+    ) {
+      throw new ApiError(
+        "STORE_DELIVERY is only available for Jabodetabek addresses",
         400,
       );
     }
 
     const snapShotAddress =
-      deliveryType === DeliveryType.DELIVERY && address
+      deliveryType !== DeliveryType.PICKUP && address
         ? {
             label: address.label,
             recipientName: address.recipientName,
@@ -469,7 +632,9 @@ export class OrderService {
             cityCode: address.cityCode,
             districtCode: address.districtCode,
             subdistrictCode: address.subdistrictCode,
-            komerceSubdistrictId: address.komerceSubdistrictId,
+            jneCityCode: address.jneCityCode,
+            komerceSubdistrictId:
+              address.komerceSubdistrictId ?? address.jneCityCode,
             country: address.country,
             latitude: address.latitude,
             longitude: address.longitude,
@@ -483,13 +648,6 @@ export class OrderService {
     const { lockedItems, subtotalPrice, totalWeight } =
       await this.calculatePricingFromDesign(resolvedConfiguration);
 
-    const deliveryFee =
-      deliveryType === DeliveryType.PICKUP
-        ? 0
-        : await this.calculateDeliveryFee(
-            address!.komerceSubdistrictId as string,
-            totalWeight,
-          );
     const deliveryDistance =
       deliveryType === DeliveryType.PICKUP
         ? null
@@ -497,6 +655,26 @@ export class OrderService {
             address!.latitude,
             address!.longitude,
           );
+
+    if (
+      deliveryType === DeliveryType.STORE_DELIVERY &&
+      typeof deliveryDistance !== "number"
+    ) {
+      throw new ApiError(
+        "Store delivery requires valid store and destination coordinates",
+        400,
+      );
+    }
+
+    const deliveryFee =
+      deliveryType === DeliveryType.PICKUP
+        ? 0
+        : deliveryType === DeliveryType.STORE_DELIVERY
+          ? this.calculateStoreDeliveryFee(deliveryDistance!)
+          : await this.calculateJneDeliveryFee(
+              address!.jneCityCode as string,
+              totalWeight,
+            );
     const grandTotalPrice = subtotalPrice + deliveryFee;
 
     const nanoid = customAlphabet("0123456789", 8);
@@ -564,10 +742,7 @@ export class OrderService {
           },
         });
 
-        const deliveryLabel =
-          createdOrder.deliveryType === DeliveryType.DELIVERY
-            ? "Delivery"
-            : "Pickup";
+        const deliveryLabel = this.getDeliveryLabel(createdOrder.deliveryType);
         const itemCount = createdOrder.items.length;
         const userNotificationTitle = "Pesanan berhasil dibuat";
         const userNotificationMessage = [
@@ -648,7 +823,7 @@ export class OrderService {
           });
 
           const addressLines =
-            deliveryType === DeliveryType.DELIVERY && address
+            deliveryType !== DeliveryType.PICKUP && address
               ? [
                   `${address.recipientName} (${address.phoneNumber})`,
                   `${address.line1}${address.line2 ? `, ${address.line2}` : ""}`,
@@ -665,10 +840,7 @@ export class OrderService {
               orderId: createdOrder.id,
               orderStatus: createdOrder.status,
               createdAt: this.formatDateTime(createdOrder.createdAt),
-              deliveryType:
-                createdOrder.deliveryType === DeliveryType.DELIVERY
-                  ? "Delivery"
-                  : "Pickup",
+              deliveryType: this.getDeliveryLabel(createdOrder.deliveryType),
               deliveryDistance:
                 typeof createdOrder.deliveryDistance === "number"
                   ? `${createdOrder.deliveryDistance.toFixed(2)} km`

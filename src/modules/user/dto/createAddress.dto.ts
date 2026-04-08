@@ -81,4 +81,8 @@ export class CreateAddressDTO {
   @IsString()
   @IsNotEmpty()
   postalCode!: string;
+
+  @IsString()
+  @IsOptional()
+  jneCityCode?: string;
 }

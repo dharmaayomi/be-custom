@@ -1,5 +1,4 @@
 import { PrismaClient } from "../../../generated/prisma/client.js";
-import { RAJAONGKIR_API_COST_KEY } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
 import { CreateAddressDTO } from "./dto/createAddress.dto.js";
 import { EditAddressDTO } from "./dto/editAddress.dto.js";
@@ -144,64 +143,9 @@ export class UserService {
     });
   };
 
-  private resolveKomerceSubdistrictId = async (
-    subdistrict: string,
-    city: string,
-  ): Promise<string> => {
-    if (!RAJAONGKIR_API_COST_KEY) {
-      throw new ApiError("RajaOngkir cost key is not configured", 500);
-    }
-
-    const res = await fetch(
-      `https://rajaongkir.komerce.id/api/v1/destination/domestic-destination?search=${encodeURIComponent(subdistrict)}&limit=50&offset=0`,
-      {
-        headers: { key: RAJAONGKIR_API_COST_KEY },
-      },
-    );
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => null);
-      console.error("[Komerce] Failed to search subdistrict:", errBody);
-      throw new ApiError("Failed to resolve subdistrict from Komerce", 502);
-    }
-
-    const payload = await res.json();
-    const results: any[] = payload?.data ?? [];
-
-    if (results.length === 0) {
-      throw new ApiError(
-        `Subdistrict "${subdistrict}" not found in Komerce`,
-        400,
-      );
-    }
-
-    // Match by subdistrict_name + city_name to avoid duplicates across cities
-    const match = results.find(
-      (d) =>
-        d.subdistrict_name.toLowerCase() === subdistrict.toLowerCase() &&
-        d.city_name.toLowerCase() === city.toLowerCase(),
-    );
-
-    // Fallback: match subdistrict_name only if city didn't match
-    // (handles slight city name differences between wilayah.id & Komerce)
-    const fallback = results.find(
-      (d) => d.subdistrict_name.toLowerCase() === subdistrict.toLowerCase(),
-    );
-
-    const resolved = match ?? fallback;
-
-    if (!resolved) {
-      console.error(
-        `[Komerce] No match for subdistrict="${subdistrict}" city="${city}". Available:`,
-        results.map((d) => `${d.subdistrict_name}, ${d.city_name}`),
-      );
-      throw new ApiError(
-        `Subdistrict "${subdistrict}" in "${city}" not found in Komerce — pastikan nama kecamatan sesuai`,
-        400,
-      );
-    }
-
-    return String(resolved.id ?? resolved.subdistrict_id);
+  private normalizeJneCityCode = (value: string | null | undefined) => {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
   };
 
   createAddress = async (authUserId: number, body: CreateAddressDTO) => {
@@ -214,13 +158,7 @@ export class UserService {
       throw new ApiError("We couldn't find your account", 404);
     }
 
-    const { isDefault, ...addressData } = body;
-
-    // Resolve Komerce subdistrict ID from subdistrict name + city name
-    const komerceSubdistrictId = await this.resolveKomerceSubdistrictId(
-      body.subdistrict,
-      body.city,
-    );
+    const { isDefault, jneCityCode, ...addressData } = body;
 
     return await this.prisma.$transaction(async (tx) => {
       if (isDefault) {
@@ -238,7 +176,7 @@ export class UserService {
         data: {
           userId: authUserId,
           ...addressData,
-          komerceSubdistrictId,
+          jneCityCode: this.normalizeJneCityCode(jneCityCode),
           isDefault,
         },
       });
@@ -250,9 +188,25 @@ export class UserService {
     body: EditAddressDTO,
     addressId: number,
   ) => {
-    const { isDefault, ...addressData } = body;
+    const { isDefault, jneCityCode, ...addressData } = body;
 
     return await this.prisma.$transaction(async (tx) => {
+      const existingAddress = await tx.address.findFirst({
+        where: {
+          id: addressId,
+          userId: authUserId,
+          deletedAt: null,
+          user: {
+            accountStatus: "ACTIVE",
+            deletedAt: null,
+          },
+        },
+      });
+
+      if (!existingAddress) {
+        throw new ApiError("We couldn't find your address", 404);
+      }
+
       if (isDefault) {
         await tx.address.updateMany({
           where: {
@@ -264,6 +218,21 @@ export class UserService {
         });
       }
 
+      const hasProvidedJneCityCode = Object.prototype.hasOwnProperty.call(
+        body,
+        "jneCityCode",
+      );
+      const shouldInvalidateJneCode =
+        Object.prototype.hasOwnProperty.call(addressData, "district") ||
+        Object.prototype.hasOwnProperty.call(addressData, "city") ||
+        Object.prototype.hasOwnProperty.call(addressData, "subdistrict");
+
+      const nextJneCityCode = hasProvidedJneCityCode
+        ? this.normalizeJneCityCode(jneCityCode)
+        : shouldInvalidateJneCode
+          ? null
+          : existingAddress.jneCityCode;
+
       const updated = await tx.address.updateMany({
         where: {
           id: addressId,
@@ -274,7 +243,7 @@ export class UserService {
             deletedAt: null,
           },
         },
-        data: { ...addressData, isDefault },
+        data: { ...addressData, jneCityCode: nextJneCityCode, isDefault },
       });
 
       if (updated.count === 0) {

@@ -82,4 +82,8 @@ export class EditAddressDTO {
   @IsOptional()
   @IsNotEmpty()
   postalCode?: string;
+
+  @IsString()
+  @IsOptional()
+  jneCityCode?: string;
 }

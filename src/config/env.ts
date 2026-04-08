@@ -11,6 +11,8 @@ export const JWT_SECRET_KEY_VERIFICATION = process.env
   .JWT_SECRET_KEY_VERIFICATION as string;
 export const JWT_SECRET_KEY_DELETE_ACCOUNT = process.env
   .JWT_SECRET_KEY_DELETE_ACCOUNT as string;
+export const JWT_SECRET_KEY_SESSION_RENEWAL = process.env
+  .JWT_SECRET_KEY_SESSION_RENEWAL as string;
 export const BASE_URL_FE = process.env.BASE_URL_FE;
 export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
 export const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
@@ -23,6 +25,9 @@ export const RAJAONGKIR_API_COST_KEY = process.env
   .RAJAONGKIR_API_COST_KEY as string;
 export const RAJAONGKIR_API_DELIVERY_KEY = process.env
   .RAJAONGKIR_API_DELIVERY_KEY as string;
+export const JNE_USERNAME = process.env.JNE_USERNAME as string;
+export const JNE_API_KEY = process.env.JNE_API_KEY as string;
+export const JNE_ORIGIN_CODE = process.env.JNE_ORIGIN_CODE as string;
 export const RAJAONGKIR_ORIGIN_SUBDISTRICT_ID =
   process.env.RAJAONGKIR_ORIGIN_SUBDISTRICT_ID;
 export const STORE_LATITUDE = process.env.STORE_LATITUDE
@@ -30,4 +35,10 @@ export const STORE_LATITUDE = process.env.STORE_LATITUDE
   : undefined;
 export const STORE_LONGITUDE = process.env.STORE_LONGITUDE
   ? Number(process.env.STORE_LONGITUDE)
+  : undefined;
+export const STORE_DELIVERY_RATE_PER_KM = process.env.STORE_DELIVERY_RATE_PER_KM
+  ? Number(process.env.STORE_DELIVERY_RATE_PER_KM)
+  : undefined;
+export const STORE_DELIVERY_BASE_FEE = process.env.STORE_DELIVERY_BASE_FEE
+  ? Number(process.env.STORE_DELIVERY_BASE_FEE)
   : undefined;

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."DeliveryType" ADD VALUE IF NOT EXISTS 'STORE_DELIVERY';

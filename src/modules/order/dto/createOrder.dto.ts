@@ -20,9 +20,7 @@ export class CreateOrderDTO {
   @IsEnum(DeliveryType)
   deliveryType!: DeliveryType;
 
-  @ValidateIf(
-    (obj: CreateOrderDTO) => obj.deliveryType === DeliveryType.DELIVERY,
-  )
+  @ValidateIf((obj: CreateOrderDTO) => obj.deliveryType !== DeliveryType.PICKUP)
   @IsNotEmpty({ message: "Shipping address is required" })
   @Type(() => Number)
   @IsNumber()

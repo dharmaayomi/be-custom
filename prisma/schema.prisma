@@ -27,6 +27,7 @@ model User {
   lastName                String
   phoneNumber             String?
   avatar                  String?
+  refreshToken            String?
   resetPasswordToken      String?
   resetPasswordTokenUsed  Boolean?
   emailVerificationToken  String?
@@ -68,6 +69,7 @@ model Address {
   district             String
   subdistrict          String?
   komerceSubdistrictId String?
+  jneCityCode          String?
   province             String
   provinceCode         String?
   cityCode             String?
@@ -217,6 +219,7 @@ model CustomOrder {
 enum DeliveryType {
   DELIVERY
   PICKUP
+  STORE_DELIVERY
 }
 
 enum OrderStatus {
