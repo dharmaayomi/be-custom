@@ -3,6 +3,7 @@ import { plainToInstance } from "class-transformer";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
 import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
 import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
+import { GetEstimationFeeDto } from "./dto/getEstimationFee.dto.js";
 import { OrderService } from "./order.service.js";
 
 export class OrderController {
@@ -72,6 +73,26 @@ export class OrderController {
     try {
       const orderId = req.params.orderId;
       const result = await this.orderService.startOrder(orderId);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getDeliveryFeeEstimates = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const authUserId = Number(res.locals.user.id);
+      const body = req.body as GetEstimationFeeDto;
+
+      const result = await this.orderService.getDeliveryFeeEstimates(
+        authUserId,
+        body.addressId,
+        body.configuration,
+      );
       res.status(200).send(result);
     } catch (error) {
       next(error);

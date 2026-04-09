@@ -1,39 +1,37 @@
+import { customAlphabet } from "nanoid";
 import {
   DeliveryType,
   OrderStatus,
-  PaymentPhase,
   PaymentStatus,
   Prisma,
   PrismaClient,
   Role,
 } from "../../../generated/prisma/client.js";
-import { CreateOrderDTO } from "./dto/createOrder.dto.js";
-import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
-import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
-import { ApiError } from "../../utils/api-error.js";
-import {
-  formatIDRCurrency,
-  humanizeEnumLabel,
-} from "../../utils/formatters.js";
 import {
   JNE_API_KEY,
   JNE_ORIGIN_CODE,
   JNE_USERNAME,
   RAJAONGKIR_API_COST_KEY,
   RAJAONGKIR_ORIGIN_SUBDISTRICT_ID,
-  STORE_DELIVERY_BASE_FEE,
-  STORE_DELIVERY_RATE_PER_KM,
   STORE_LATITUDE,
   STORE_LONGITUDE,
 } from "../../config/env.js";
-import { customAlphabet } from "nanoid";
+import { ApiError } from "../../utils/api-error.js";
+import {
+  formatIDRCurrency,
+  humanizeEnumLabel,
+} from "../../utils/formatters.js";
 import { MailService } from "../mail/mail.service.js";
 import { NotificationService } from "../notifications/notification.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
+import { CreateOrderDTO } from "./dto/createOrder.dto.js";
+import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
+import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
 
 interface DesignModel {
   id: string;
   texture: string | null;
+  scale: number[];
 }
 
 interface DesignConfiguration {
@@ -65,6 +63,7 @@ interface PricingResult {
   lockedItems: LockedItem[];
   subtotalPrice: number;
   totalWeight: number;
+  totalVolumeCm3: number;
 }
 
 export class OrderService {
@@ -73,6 +72,12 @@ export class OrderService {
   private readonly RAJAONGKIR_DOMESTIC_COST_URL =
     "https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost";
   private readonly DEFAULT_JNE_SERVICE_DISPLAY = "JTR";
+  private readonly STORE_DELIVERY_CARGO_DIVISION_FACTOR = 4000;
+  private readonly STORE_DELIVERY_MINIMUM_WEIGHT_KG = 10;
+  private readonly STORE_DELIVERY_ROAD_CORRECTION_FACTOR = 1.3;
+  private readonly STORE_DELIVERY_PRICE_PER_KM = 3500;
+  private readonly STORE_DELIVERY_PRICE_PER_KG = 2000;
+  private readonly STORE_DELIVERY_FIXED_ADMIN_FEE = 5000;
   private readonly JNE_PRICE_URL_DEV =
     "https://apiv2.jne.co.id:10202/tracing/api/pricedev";
   private readonly JNE_USER_AGENT = "node.js";
@@ -217,6 +222,7 @@ export class OrderService {
     const lockedItems: LockedItem[] = [];
     let subtotalPrice = 0;
     let totalWeight = 0;
+    let totalVolumeCm3 = 0;
 
     for (const model of productBaseModels) {
       const productBaseId = this.stripInstanceSuffix(model.id);
@@ -265,10 +271,28 @@ export class OrderService {
 
       const itemTotalPrice =
         productBase.basePrice + lockedMaterialPrice + itemComponentPrice;
-      const itemWeight = productBase.weight + itemComponentWeight;
+      // const itemWeight = productBase.weight + itemComponentWeight;
 
+      // const itemVolumeCm3 = Math.max(
+      //   0,
+      //   productBase.width * productBase.height * productBase.depth,
+      // );
+      const [scaleX, scaleY, scaleZ] = model.scale ?? [1, 1, 1];
+      const volumeScale = scaleX * scaleY * scaleZ;
+
+      const itemVolumeCm3 = Math.max(
+        0,
+        productBase.width *
+          scaleX *
+          productBase.height *
+          scaleY *
+          productBase.depth *
+          scaleZ,
+      );
+      const itemWeight = productBase.weight * volumeScale + itemComponentWeight;
       subtotalPrice += itemTotalPrice;
       totalWeight += itemWeight;
+      totalVolumeCm3 += itemVolumeCm3;
 
       lockedItems.push({
         instanceId: model.id,
@@ -289,7 +313,7 @@ export class OrderService {
       );
     }
 
-    return { lockedItems, subtotalPrice, totalWeight };
+    return { lockedItems, subtotalPrice, totalWeight, totalVolumeCm3 };
   };
 
   private getRajaOngkirCostValue = (payload: any): number | null => {
@@ -491,28 +515,35 @@ export class OrderService {
     );
   };
 
-  private calculateStoreDeliveryFee = (distanceKm: number) => {
-    if (
-      typeof STORE_DELIVERY_RATE_PER_KM !== "number" ||
-      Number.isNaN(STORE_DELIVERY_RATE_PER_KM)
-    ) {
-      throw new ApiError("STORE_DELIVERY_RATE_PER_KM is not configured", 500);
+  private roundStoreDeliveryWeight = (weightKg: number) => {
+    const flooredWeight = Math.floor(weightKg);
+    const decimalPart = weightKg - flooredWeight;
+
+    if (decimalPart > 0.3) {
+      return Math.ceil(weightKg);
     }
 
-    if (distanceKm <= 1) {
-      return STORE_DELIVERY_RATE_PER_KM;
-    }
+    return flooredWeight;
+  };
 
-    if (
-      typeof STORE_DELIVERY_BASE_FEE !== "number" ||
-      Number.isNaN(STORE_DELIVERY_BASE_FEE)
-    ) {
-      throw new ApiError("STORE_DELIVERY_BASE_FEE is not configured", 500);
-    }
+  private calculateStoreDeliveryFee = (
+    actualWeightKg: number,
+    straightLineDistanceKm: number,
+  ) => {
+    const initialWeightKg = actualWeightKg;
+    const roundedWeightKg = this.roundStoreDeliveryWeight(initialWeightKg);
+    const finalWeightKg = Math.max(
+      roundedWeightKg,
+      this.STORE_DELIVERY_MINIMUM_WEIGHT_KG,
+    );
+    const estimatedRoadDistanceKm =
+      straightLineDistanceKm * this.STORE_DELIVERY_ROAD_CORRECTION_FACTOR;
+    const weightCost = finalWeightKg * this.STORE_DELIVERY_PRICE_PER_KG;
+    const distanceCost =
+      estimatedRoadDistanceKm * this.STORE_DELIVERY_PRICE_PER_KM;
 
-    return (
-      STORE_DELIVERY_BASE_FEE +
-      Math.ceil(distanceKm) * STORE_DELIVERY_RATE_PER_KM
+    return Math.round(
+      weightCost + distanceCost + this.STORE_DELIVERY_FIXED_ADMIN_FEE,
     );
   };
 
@@ -645,7 +676,7 @@ export class OrderService {
             note: "Pickup at store",
           };
 
-    const { lockedItems, subtotalPrice, totalWeight } =
+    const { lockedItems, subtotalPrice, totalWeight, totalVolumeCm3 } =
       await this.calculatePricingFromDesign(resolvedConfiguration);
 
     const deliveryDistance =
@@ -670,7 +701,7 @@ export class OrderService {
       deliveryType === DeliveryType.PICKUP
         ? 0
         : deliveryType === DeliveryType.STORE_DELIVERY
-          ? this.calculateStoreDeliveryFee(deliveryDistance!)
+          ? this.calculateStoreDeliveryFee(totalWeight, deliveryDistance!)
           : await this.calculateJneDeliveryFee(
               address!.jneCityCode as string,
               totalWeight,
@@ -1205,5 +1236,72 @@ export class OrderService {
       message: "Order processed successfully",
       data: updatedOrder.status,
     };
+  };
+
+  getDeliveryFeeEstimates = async (
+    authUserId: number,
+    addressId: number,
+    configuration: Record<string, unknown>,
+  ) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: authUserId },
+      select: { id: true, accountStatus: true, deletedAt: true },
+    });
+
+    if (!user || user.deletedAt || user.accountStatus !== "ACTIVE") {
+      throw new ApiError("We couldn't find your account", 404);
+    }
+
+    const address = await this.prisma.address.findFirst({
+      where: {
+        id: addressId,
+        userId: authUserId,
+        deletedAt: null,
+        user: { accountStatus: "ACTIVE", deletedAt: null },
+      },
+    });
+
+    if (!address) {
+      throw new ApiError("We couldn't find your address", 404);
+    }
+
+    const { totalWeight, totalVolumeCm3 } =
+      await this.calculatePricingFromDesign(configuration);
+
+    const isJabodetabek = this.isJabodetabekAddress(address);
+    const distanceKm = this.calculateDeliveryDistanceKm(
+      address.latitude,
+      address.longitude,
+    );
+
+    const jneFee = address.jneCityCode
+      ? await this.calculateJneDeliveryFee(address.jneCityCode, totalWeight)
+      : null;
+
+    const storeDeliveryFee =
+      isJabodetabek && distanceKm !== null
+        ? this.calculateStoreDeliveryFee(totalWeight, distanceKm)
+        : null;
+
+    return [
+      {
+        type: DeliveryType.PICKUP,
+        label: this.getDeliveryLabel(DeliveryType.PICKUP),
+        available: true,
+        fee: 0,
+      },
+      {
+        type: DeliveryType.DELIVERY,
+        label: this.getDeliveryLabel(DeliveryType.DELIVERY),
+        available: jneFee !== null,
+        fee: jneFee,
+      },
+      {
+        type: DeliveryType.STORE_DELIVERY,
+        label: this.getDeliveryLabel(DeliveryType.STORE_DELIVERY),
+        available: storeDeliveryFee !== null,
+        fee: storeDeliveryFee,
+      },
+    ];
   };
 }

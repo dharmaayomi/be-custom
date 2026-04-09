@@ -89,6 +89,22 @@ model Address {
   @@map("addresses")
 }
 
+model JneDestination {
+  id              Int      @id @default(autoincrement())
+  provinceName    String
+  cityName        String
+  districtName    String
+  subdistrictName String
+  zipCode         String
+  tariffCode      String
+  createdAt       DateTime @default(now())
+
+  @@index([cityName])
+  @@index([districtName])
+  @@index([subdistrictName])
+  @@map("jne_destinations")
+}
+
 model ProductBase {
   id               String            @id @default(cuid())
   productName      String
