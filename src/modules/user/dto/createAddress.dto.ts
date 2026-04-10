@@ -45,19 +45,19 @@ export class CreateAddressDTO {
   province!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   provinceCode!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   cityCode!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   districtCode!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   subdistrictCode!: string;
 
   @IsString()
@@ -84,5 +84,5 @@ export class CreateAddressDTO {
 
   @IsString()
   @IsOptional()
-  jneCityCode?: string;
+  jneTariffCode?: string;
 }

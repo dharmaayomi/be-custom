@@ -143,7 +143,7 @@ export class UserService {
     });
   };
 
-  private normalizeJneCityCode = (value: string | null | undefined) => {
+  private normalizeJneTariffCode = (value: string | null | undefined) => {
     const normalized = value?.trim();
     return normalized ? normalized : null;
   };
@@ -158,7 +158,7 @@ export class UserService {
       throw new ApiError("We couldn't find your account", 404);
     }
 
-    const { isDefault, jneCityCode, ...addressData } = body;
+    const { isDefault, jneTariffCode, ...addressData } = body;
 
     return await this.prisma.$transaction(async (tx) => {
       if (isDefault) {
@@ -171,12 +171,18 @@ export class UserService {
           data: { isDefault: false },
         });
       }
-
+      if (jneTariffCode) {
+        const validDestination = await tx.jneDestination.findFirst({
+          where: { tariffCode: jneTariffCode },
+        });
+        if (!validDestination)
+          throw new ApiError("Kode destinasi pengiriman tidak valid", 400);
+      }
       return await tx.address.create({
         data: {
           userId: authUserId,
           ...addressData,
-          jneCityCode: this.normalizeJneCityCode(jneCityCode),
+          jneTariffCode: this.normalizeJneTariffCode(jneTariffCode),
           isDefault,
         },
       });
@@ -188,7 +194,7 @@ export class UserService {
     body: EditAddressDTO,
     addressId: number,
   ) => {
-    const { isDefault, jneCityCode, ...addressData } = body;
+    const { isDefault, jneTariffCode, ...addressData } = body;
 
     return await this.prisma.$transaction(async (tx) => {
       const existingAddress = await tx.address.findFirst({
@@ -218,21 +224,27 @@ export class UserService {
         });
       }
 
-      const hasProvidedJneCityCode = Object.prototype.hasOwnProperty.call(
+      const hasProvidedJneTariffCode = Object.prototype.hasOwnProperty.call(
         body,
-        "jneCityCode",
+        "jneTariffCode",
       );
-      const shouldInvalidateJneCode =
+      const shouldInvalidateJneTariffCode =
         Object.prototype.hasOwnProperty.call(addressData, "district") ||
         Object.prototype.hasOwnProperty.call(addressData, "city") ||
         Object.prototype.hasOwnProperty.call(addressData, "subdistrict");
 
-      const nextJneCityCode = hasProvidedJneCityCode
-        ? this.normalizeJneCityCode(jneCityCode)
-        : shouldInvalidateJneCode
+      const nextJneTariffCode = hasProvidedJneTariffCode
+        ? this.normalizeJneTariffCode(jneTariffCode)
+        : shouldInvalidateJneTariffCode
           ? null
-          : existingAddress.jneCityCode;
-
+          : existingAddress.jneTariffCode;
+      if (nextJneTariffCode) {
+        const validDestination = await tx.jneDestination.findFirst({
+          where: { tariffCode: nextJneTariffCode },
+        });
+        if (!validDestination)
+          throw new ApiError("Kode destinasi pengiriman tidak valid", 400);
+      }
       const updated = await tx.address.updateMany({
         where: {
           id: addressId,
@@ -243,7 +255,11 @@ export class UserService {
             deletedAt: null,
           },
         },
-        data: { ...addressData, jneCityCode: nextJneCityCode, isDefault },
+        data: {
+          ...addressData,
+          jneTariffCode: nextJneTariffCode,
+          isDefault,
+        },
       });
 
       if (updated.count === 0) {
@@ -350,5 +366,67 @@ export class UserService {
       throw new ApiError("We couldn't find your account", 404);
     }
     return user;
+  };
+
+  getJNEDestinations = async (search: string) => {
+    return await this.prisma.jneDestination.findMany({
+      where: {
+        OR: [
+          { cityName: { startsWith: search, mode: "insensitive" } },
+          { districtName: { startsWith: search, mode: "insensitive" } },
+          { subdistrictName: { startsWith: search, mode: "insensitive" } },
+        ],
+      },
+      take: 20,
+    });
+  };
+
+  private provincesCache: { provinceName: string }[] | null = null;
+  getProvinces = async () => {
+    if (this.provincesCache) return this.provincesCache;
+
+    const result = await this.prisma.jneDestination.findMany({
+      distinct: ["provinceName"],
+      select: { provinceName: true },
+      orderBy: { provinceName: "asc" },
+    });
+
+    this.provincesCache = result;
+    return result;
+  };
+
+  getCities = async (provinceName: string) => {
+    return await this.prisma.jneDestination.findMany({
+      distinct: ["cityName"],
+      select: { cityName: true },
+      where: { provinceName },
+      orderBy: { cityName: "asc" },
+    });
+  };
+
+  getDistricts = async (provinceName: string, cityName: string) => {
+    return await this.prisma.jneDestination.findMany({
+      distinct: ["districtName"],
+      select: { districtName: true },
+      where: { provinceName, cityName },
+      orderBy: { districtName: "asc" },
+    });
+  };
+
+  getSubdistricts = async (
+    provinceName: string,
+    cityName: string,
+    districtName: string,
+  ) => {
+    return await this.prisma.jneDestination.findMany({
+      select: {
+        id: true,
+        subdistrictName: true,
+        zipCode: true,
+        tariffCode: true,
+      },
+      where: { provinceName, cityName, districtName },
+      orderBy: { subdistrictName: "asc" },
+    });
   };
 }

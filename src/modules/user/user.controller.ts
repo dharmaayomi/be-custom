@@ -118,4 +118,41 @@ export class UserController {
       next(error);
     }
   };
+
+  getJNEDestinations = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const search = req.query.search as string;
+    const result = await this.userService.getJNEDestinations(search);
+    res.status(200).send(result);
+  };
+
+  getProvinces = async (req: Request, res: Response, next: NextFunction) => {
+    const result = await this.userService.getProvinces();
+    res.status(200).send(result);
+  };
+
+  getCities = async (req: Request, res: Response, next: NextFunction) => {
+    const province = req.query.province as string;
+    const result = await this.userService.getCities(province);
+    res.status(200).send(result);
+  };
+
+  getDistricts = async (req: Request, res: Response, next: NextFunction) => {
+    const { province, city } = req.query as Record<string, string>;
+    const result = await this.userService.getDistricts(province, city);
+    res.status(200).send(result);
+  };
+
+  getSubdistricts = async (req: Request, res: Response, next: NextFunction) => {
+    const { province, city, district } = req.query as Record<string, string>;
+    const result = await this.userService.getSubdistricts(
+      province,
+      city,
+      district,
+    );
+    res.status(200).send(result);
+  };
 }

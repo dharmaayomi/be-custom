@@ -85,5 +85,5 @@ export class EditAddressDTO {
 
   @IsString()
   @IsOptional()
-  jneCityCode?: string;
+  jneTariffCode?: string;
 }

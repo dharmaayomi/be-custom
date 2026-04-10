@@ -426,7 +426,7 @@ export class OrderService {
       headers: {
         "content-type": "application/x-www-form-urlencoded",
         Accept: "application/json",
-        "User-Agent": this.JNE_USER_AGENT,
+        // "User-Agent": this.JNE_USER_AGENT,
       },
       body: new URLSearchParams({
         username: JNE_USERNAME,
@@ -629,10 +629,10 @@ export class OrderService {
 
     if (
       deliveryType === DeliveryType.DELIVERY &&
-      (!address || !address.jneCityCode)
+      (!address || !address.jneTariffCode)
     ) {
       throw new ApiError(
-        "Address jneCityCode is required for JNE delivery calculation. Please re-save this address.",
+        "Address jneTariffCode is required for JNE delivery calculation. Please re-save this address.",
         400,
       );
     }
@@ -663,9 +663,9 @@ export class OrderService {
             cityCode: address.cityCode,
             districtCode: address.districtCode,
             subdistrictCode: address.subdistrictCode,
-            jneCityCode: address.jneCityCode,
+            jneTariffCode: address.jneTariffCode,
             komerceSubdistrictId:
-              address.komerceSubdistrictId ?? address.jneCityCode,
+              address.komerceSubdistrictId ?? address.jneTariffCode,
             country: address.country,
             latitude: address.latitude,
             longitude: address.longitude,
@@ -703,7 +703,7 @@ export class OrderService {
         : deliveryType === DeliveryType.STORE_DELIVERY
           ? this.calculateStoreDeliveryFee(totalWeight, deliveryDistance!)
           : await this.calculateJneDeliveryFee(
-              address!.jneCityCode as string,
+              address!.jneTariffCode as string,
               totalWeight,
             );
     const grandTotalPrice = subtotalPrice + deliveryFee;
@@ -1274,8 +1274,8 @@ export class OrderService {
       address.longitude,
     );
 
-    const jneFee = address.jneCityCode
-      ? await this.calculateJneDeliveryFee(address.jneCityCode, totalWeight)
+    const jneFee = address.jneTariffCode
+      ? await this.calculateJneDeliveryFee(address.jneTariffCode, totalWeight)
       : null;
 
     const storeDeliveryFee =

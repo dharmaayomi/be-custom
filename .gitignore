@@ -4,3 +4,8 @@ node_modules
 dist
 docker
 /generated/prisma
+prisma/data/*.csv
+npm-debug.log*
+
+.DS_Store
+Thumbs.db

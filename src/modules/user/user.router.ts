@@ -32,6 +32,24 @@ export class UserRouter {
       this.userController.getUserDisplay,
     );
     this.router.get(
+      "/jne-destinations",
+      this.userController.getJNEDestinations,
+    );
+
+    this.router.get(
+      "/jne-destinations/provinces",
+      this.userController.getProvinces,
+    );
+    this.router.get("/jne-destinations/cities", this.userController.getCities);
+    this.router.get(
+      "/jne-destinations/districts",
+      this.userController.getDistricts,
+    );
+    this.router.get(
+      "/jne-destinations/subdistricts",
+      this.userController.getSubdistricts,
+    );
+    this.router.get(
       "/:id/payments",
       this.jwtMiddleware.verifyToken(),
       this.userController.getUserPayments,

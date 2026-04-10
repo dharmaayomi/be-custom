@@ -69,7 +69,7 @@ model Address {
   district             String
   subdistrict          String?
   komerceSubdistrictId String?
-  jneCityCode          String?
+  jneTariffCode        String?
   province             String
   provinceCode         String?
   cityCode             String?
