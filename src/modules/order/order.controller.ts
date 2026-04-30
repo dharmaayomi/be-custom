@@ -98,4 +98,18 @@ export class OrderController {
       next(error);
     }
   };
+
+  getOrderPaymentSummary = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const orderId = req.params.orderId;
+      const result = await this.orderService.getOrderPaymentSummary(orderId);
+      res.status(200).send(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

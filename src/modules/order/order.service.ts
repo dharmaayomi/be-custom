@@ -27,6 +27,7 @@ import { PaginationService } from "../pagination/pagination.service.js";
 import { CreateOrderDTO } from "./dto/createOrder.dto.js";
 import { GetAdminOrdersQueryDTO } from "./dto/getAdminOrdersQuery.dto.js";
 import { GetOrdersQueryDTO } from "./dto/getOrdersQuery.dto.js";
+import { getDpAmount } from "../../utils/billing.config.js";
 
 interface DesignModel {
   id: string;
@@ -102,10 +103,25 @@ export class OrderService {
     }).format(value);
   };
 
-  private getOrderPaymentSummary = async (
+  public getOrderPaymentSummary = async (
     orderId: string,
-    grandTotalPrice: number,
+    grandTotalPrice?: number,
   ) => {
+    let resolvedGrandTotalPrice = grandTotalPrice;
+
+    if (typeof resolvedGrandTotalPrice !== "number") {
+      const order = await this.prisma.customOrder.findUnique({
+        where: { id: orderId },
+        select: { grandTotalPrice: true },
+      });
+
+      if (!order) {
+        throw new ApiError("We couldn't find your order", 404);
+      }
+
+      resolvedGrandTotalPrice = order.grandTotalPrice;
+    }
+
     const paidSummary = await this.prisma.payment.aggregate({
       where: {
         orderId,
@@ -117,9 +133,14 @@ export class OrderService {
     });
 
     const totalPaid = paidSummary._sum.amount ?? 0;
-    const remaining = Math.max(0, grandTotalPrice - totalPaid);
-
-    return { totalPaid, remaining };
+    const remaining = Math.max(0, resolvedGrandTotalPrice - totalPaid);
+    const dpAmount = getDpAmount(resolvedGrandTotalPrice);
+    return {
+      totalPaid,
+      remaining,
+      dpAmount,
+      dueNow: totalPaid === 0 ? dpAmount : remaining,
+    };
   };
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -414,7 +435,7 @@ export class OrderService {
   private calculateJneDeliveryFee = async (
     destinationCode: string,
     weightKg: number,
-  ) => {
+  ): Promise<number | null> => {
     if (!JNE_USERNAME || !JNE_API_KEY || !JNE_ORIGIN_CODE) {
       throw new ApiError("JNE delivery configuration is incomplete", 500);
     }
@@ -454,8 +475,17 @@ export class OrderService {
 
     const cost = this.getJneJtrCostValue(responsePayload);
 
-    if (cost === null || cost < 0) {
-      throw new ApiError("JNE returned invalid JTR delivery fee", 502);
+    return cost === null || cost < 0 ? null : cost;
+  };
+
+  private calculateJneDeliveryFeeOrFail = async (
+    destinationCode: string,
+    weightKg: number,
+  ) => {
+    const cost = await this.calculateJneDeliveryFee(destinationCode, weightKg);
+
+    if (cost === null) {
+      throw new ApiError("JNE Cargo Not Available", 502);
     }
 
     return cost;
@@ -702,7 +732,7 @@ export class OrderService {
         ? 0
         : deliveryType === DeliveryType.STORE_DELIVERY
           ? this.calculateStoreDeliveryFee(totalWeight, deliveryDistance!)
-          : await this.calculateJneDeliveryFee(
+          : await this.calculateJneDeliveryFeeOrFail(
               address!.jneTariffCode as string,
               totalWeight,
             );
@@ -1282,6 +1312,11 @@ export class OrderService {
       isJabodetabek && distanceKm !== null
         ? this.calculateStoreDeliveryFee(totalWeight, distanceKm)
         : null;
+    const storeDeliveryMessage = !isJabodetabek
+      ? "STORE_DELIVERY is only available for Jabodetabek addresses"
+      : distanceKm === null
+        ? "Store delivery requires valid store and destination coordinates"
+        : null;
 
     return [
       {
@@ -1289,18 +1324,21 @@ export class OrderService {
         label: this.getDeliveryLabel(DeliveryType.PICKUP),
         available: true,
         fee: 0,
+        message: null,
       },
       {
         type: DeliveryType.DELIVERY,
         label: this.getDeliveryLabel(DeliveryType.DELIVERY),
         available: jneFee !== null,
         fee: jneFee,
+        message: null,
       },
       {
         type: DeliveryType.STORE_DELIVERY,
         label: this.getDeliveryLabel(DeliveryType.STORE_DELIVERY),
         available: storeDeliveryFee !== null,
         fee: storeDeliveryFee,
+        message: storeDeliveryMessage,
       },
     ];
   };

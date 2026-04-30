@@ -51,12 +51,50 @@ export class App {
     this.handleError();
   }
 
+  // private configure() {
+  //   this.app.use(
+  //     cors({
+  //       origin: true,
+  //       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  //       allowedHeaders: [
+  //         "Content-Type",
+  //         "Authorization",
+  //         "ngrok-skip-browser-warning",
+  //       ],
+  //       credentials: true,
+  //     }),
+  //   );
+  //   this.app.use(loggerHttp);
+  //   this.app.use(express.json());
+  // }
   private configure() {
-    this.app.use(cors());
+    // FORCE HEADERS - Letakkan ini di baris pertama configure
+    this.app.use((req, res, next) => {
+      // Izinkan origin vercel kamu
+      res.setHeader(
+        "Access-Control-Allow-Origin",
+        "https://custom-furniture-eight.vercel.app",
+      );
+      res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      );
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept, Authorization, ngrok-skip-browser-warning",
+      );
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+
+      // Penting: Ngrok sering bermasalah dengan OPTIONS
+      if (req.method === "OPTIONS") {
+        return res.status(200).end();
+      }
+      next();
+    });
+
     this.app.use(loggerHttp);
     this.app.use(express.json());
   }
-
   private registerModules() {
     // shared dependency
     const prismaClient = prisma;

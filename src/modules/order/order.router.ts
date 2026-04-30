@@ -26,18 +26,7 @@ export class OrderRouter {
       this.validationMiddleware.validateQuery(GetOrdersQueryDTO),
       this.orderController.getOrders,
     );
-    this.router.post(
-      "/delivery-fee-estimates",
-      this.jwtMiddleware.verifyToken(),
-      this.validationMiddleware.validateBody(GetEstimationFeeDto),
-      this.orderController.getDeliveryFeeEstimates,
-    );
-    this.router.post(
-      "/create-custom-order",
-      this.jwtMiddleware.verifyToken(),
-      this.validationMiddleware.validateBody(CreateOrderDTO),
-      this.orderController.createCustomOrder,
-    );
+
     this.router.get(
       "/admin",
       this.jwtMiddleware.verifyToken(),
@@ -61,6 +50,23 @@ export class OrderRouter {
       "/:orderId",
       this.jwtMiddleware.verifyToken(),
       this.orderController.getOrder,
+    );
+    this.router.get(
+      "/:orderId/summary",
+      this.jwtMiddleware.verifyToken(),
+      this.orderController.getOrderPaymentSummary,
+    );
+    this.router.post(
+      "/delivery-fee-estimates",
+      this.jwtMiddleware.verifyToken(),
+      this.validationMiddleware.validateBody(GetEstimationFeeDto),
+      this.orderController.getDeliveryFeeEstimates,
+    );
+    this.router.post(
+      "/create-custom-order",
+      this.jwtMiddleware.verifyToken(),
+      this.validationMiddleware.validateBody(CreateOrderDTO),
+      this.orderController.createCustomOrder,
     );
   };
 

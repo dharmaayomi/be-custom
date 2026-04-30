@@ -14,6 +14,7 @@ import { NotificationService } from "../notifications/notification.service.js";
 import { PaginationService } from "../pagination/pagination.service.js";
 import { PaymentChannel } from "./dto/createSnapPayment.dto.js";
 import { GetPaymentsQueryDTO } from "./dto/getPaymentsQuery.dto.js";
+import { getDpAmount } from "../../utils/billing.config.js";
 
 type CreateSnapTransactionInput = {
   authUserId: number;
@@ -137,9 +138,9 @@ export class PaymentService {
     }
   };
 
-  private getDpAmount = (grandTotalPrice: number): number => {
-    return Math.ceil(grandTotalPrice * 0.25);
-  };
+  // private getDpAmount = (grandTotalPrice: number): number => {
+  //   return Math.ceil(grandTotalPrice * 0.25);
+  // };
 
   private getPhaseAmount = (
     grandTotalPrice: number,
@@ -689,7 +690,7 @@ export class PaymentService {
           );
         }
 
-        const phaseAmount = this.getDpAmount(order.grandTotalPrice);
+        const phaseAmount = getDpAmount(order.grandTotalPrice);
         if (phaseAmount <= 0) {
           throw new ApiError("Calculated payment amount is invalid", 400);
         }

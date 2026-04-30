@@ -6,6 +6,7 @@ import {
   Role,
 } from "../../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
+import { getDpAmount } from "../../utils/billing.config.js";
 import {
   formatIDRCurrency,
   humanizeEnumLabel,
@@ -136,7 +137,7 @@ export class ProductionService {
       });
 
       const totalPaid = this.roundMoney(paidSummary._sum.amount ?? 0);
-      const dpAmount = this.roundMoney(order.grandTotalPrice * 0.25);
+      const dpAmount = getDpAmount(order.grandTotalPrice);
 
       if (totalPaid < dpAmount) {
         return {
